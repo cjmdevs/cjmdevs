@@ -1,0 +1,19 @@
+{
+  "name": "jokerdeck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A mobile-first poker roguelike PWA. No build step — the source is the site.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "icons": "python3 tools/make_icons.py",
+    "test": "node tools/selftest.mjs",
+    "sim": "node tools/simulate.mjs 400",
+    "balance": "node tools/balance.mjs 150",
+    "test:ui": "node tools/uitest.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}
