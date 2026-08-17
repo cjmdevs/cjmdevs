@@ -6,7 +6,8 @@ import { saveRun } from './save.js';
 boot();
 
 // Offline support + home-screen install. Fails silently on file:// or http.
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+// The single-file build has no sw.js sitting next to it, so it opts out.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.__INLINE_BUILD__) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline play unavailable */ });
   });

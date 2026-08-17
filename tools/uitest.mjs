@@ -47,7 +47,10 @@ async function main() {
     if (!ok) problems.push(`step failed: ${name} ${detail}`);
   };
 
-  await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle' });
+  // Accept either a directory (served index.html) or a direct .html file, so the
+  // same suite can verify the modular app and the single-file bundle.
+  const target = BASE.endsWith('.html') ? BASE : `${BASE}/index.html`;
+  await page.goto(target, { waitUntil: 'networkidle' });
 
   // ---------------------------------------------------------- main menu ----
   await page.waitForSelector('.sheet');

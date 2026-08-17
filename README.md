@@ -14,36 +14,54 @@ store, no account, no network after the first load.
 
 ## Play it on your phone
 
-**1. Turn on GitHub Pages** (one time)
+### Add it to your home screen
 
-Go to **Settings → Pages** in this repository and set **Source** to
-**GitHub Actions**. Push to `main` and the included workflow builds and
-publishes the site. Your URL will be:
-
-```
-https://<your-username>.github.io/<repo-name>/
-```
-
-**2. Open that URL on your phone**
-
-**3. Add it to your home screen**
+Once you have a URL (below), open it on your phone and:
 
 | Phone | How |
 | --- | --- |
 | iPhone / iPad | Open in **Safari** → tap **Share** (□↑) → **Add to Home Screen** |
 | Android | Open in **Chrome** → tap **⋮** → **Install app** (or *Add to Home screen*) |
 
-It now launches full-screen with no browser chrome, keeps your run saved
+It then launches full-screen with no browser chrome, keeps your run saved
 between sessions, and works with no signal.
 
-> On iOS, "Add to Home Screen" only appears in Safari — not Chrome or Firefox.
+> On iOS, "Add to Home Screen" only appears in **Safari** — not Chrome or Firefox.
 
-### Any other host works too
+### Getting a URL: GitHub Pages
+
+Two things must both be true, or the link 404s:
+
+**1. The code has to be on `main`.** The workflow also deploys `claude/**`
+preview branches, but GitHub restricts the `github-pages` environment to the
+default branch unless you loosen it — so merging to `main` is the reliable path.
+
+**2. Pages has to be switched on, once.** Go to **Settings → Pages** and set
+**Source** to **GitHub Actions**. Nothing publishes until you do; that setting
+cannot be enabled from a workflow.
+
+Then every push runs the tests and publishes to:
+
+```
+https://<your-username>.github.io/<repo-name>/
+```
+
+Check **Actions** for a green run and **Settings → Pages** for the live URL.
+
+### Getting a URL: anywhere else
 
 There is no build step, so the repository *is* the website. Drag the folder onto
 Netlify, Vercel, Cloudflare Pages, or any static host and it works. The only
 requirement is **HTTPS** (or `localhost`) — service workers, and therefore
 offline play and installability, are disabled on plain `http://`.
+
+### No hosting at all: the single file
+
+`dist/jokerdeck.html` is the entire game — code, styles and icons — inlined
+into one self-contained file with no external requests. Download it and open
+it directly; it plays from a `file://` path with no server involved. Email or
+AirDrop it to your phone and open it from Files, or drop that one file on any
+host. Rebuild it with `npm run bundle`.
 
 ---
 
@@ -155,10 +173,11 @@ crashes and no NaN. `simulate.mjs` catches the state-machine bugs that unit
 tests miss. `uitest.mjs` drives the real UI in Chromium at 390×844, 844×390 and
 320×568, and fails on any console error or layout overflow.
 
-### Regenerating the icons
+### Generated files
 
 ```bash
 npm run icons          # pure-Python PNG writer, no dependencies
+npm run bundle         # rebuild dist/jokerdeck.html (single self-contained file)
 ```
 
 ---

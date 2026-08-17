@@ -10,7 +10,8 @@
     "test": "node tools/selftest.mjs",
     "sim": "node tools/simulate.mjs 400",
     "balance": "node tools/balance.mjs 150",
-    "test:ui": "node tools/uitest.mjs"
+    "test:ui": "node tools/uitest.mjs",
+    "bundle": "node tools/bundle.mjs"
   },
   "license": "MIT",
   "devDependencies": {
