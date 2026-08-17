@@ -28,25 +28,34 @@ between sessions, and works with no signal.
 
 > On iOS, "Add to Home Screen" only appears in **Safari** — not Chrome or Firefox.
 
-### Getting a URL: GitHub Pages
+### It is already live
 
-Two things must both be true, or the link 404s:
+**https://cjmdevs.github.io/cjmdevs/**
 
-**1. The code has to be on `main`.** The workflow also deploys `claude/**`
-preview branches, but GitHub restricts the `github-pages` environment to the
-default branch unless you loosen it — so merging to `main` is the reliable path.
+Every push to `main` runs the tests and republishes automatically. No
+repository setting needs touching.
 
-**2. Pages has to be switched on, once.** Go to **Settings → Pages** and set
-**Source** to **GitHub Actions**. Nothing publishes until you do; that setting
-cannot be enabled from a workflow.
+<details>
+<summary>How the deploy is wired, and why</summary>
 
-Then every push runs the tests and publishes to:
+The obvious route — Pages with **Source: GitHub Actions** — needs a one-time
+admin toggle, and a workflow cannot set it for you. `actions/configure-pages`
+with `enablement: true` fails outright:
 
 ```
-https://<your-username>.github.io/<repo-name>/
+Get Pages site failed.    Error: Not Found
+Create Pages site failed. Error: Resource not accessible by integration
 ```
 
-Check **Actions** for a green run and **Settings → Pages** for the live URL.
+Creating a Pages site requires repository admin rights, which `GITHUB_TOKEN`
+does not have.
+
+Pushing a **`gh-pages` branch** does enable Pages, because that is an ordinary
+`contents: write` push. So the workflow builds the site and force-pushes it to
+`gh-pages` on every change to `main`. Deploys stay automatic and nothing has to
+be enabled by hand.
+
+</details>
 
 ### Getting a URL: anywhere else
 

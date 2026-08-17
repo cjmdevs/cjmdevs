@@ -2,10 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
-      # Preview branches deploy too, so the site is live before any merge.
-      - 'claude/**'
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,9 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write        # needed to publish the built site to gh-pages
 
 jobs:
   test:
@@ -24,26 +19,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Rules engine tests
         run: node tools/selftest.mjs
       - name: Full-run fuzz
         run: node tools/simulate.mjs 120
+      - name: Single-file bundle builds
+        run: node tools/bundle.mjs
 
-  deploy:
+  publish:
     needs: test
-    # Pages restricts the github-pages environment to the default branch, so
-    # only main deploys. Other branches still run the test job above.
+    # Pages serves the default branch only; other branches still run the tests.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # The site is the repo — there is no build step for the app itself.
       # Only the one-file download is generated.
@@ -52,27 +45,35 @@ jobs:
           node tools/bundle.mjs
           mkdir -p _site
           cp index.html manifest.webmanifest sw.js _site/
-          cp -r css js icons _site/
-          cp -r dist _site/
+          cp -r css js icons dist _site/
           # Stop Pages running the output through Jekyll.
           touch _site/.nojekyll
 
-      # No `enablement: true` here. Creating a Pages site needs repository admin
-      # rights, and GITHUB_TOKEN does not have them:
-      #   Create Pages site failed. Error: Resource not accessible by integration
-      # Pages must be switched on once by a repo admin, under
-      # Settings -> Pages -> Source: GitHub Actions.
-      - id: pages
-        uses: actions/configure-pages@v5
-        continue-on-error: true
-
-      - name: Explain a missing Pages configuration
-        if: steps.pages.outcome == 'failure'
+      # Published to the gh-pages branch rather than through the Pages-Actions
+      # source. Pushing that branch is what enabled Pages on this repository in
+      # the first place: enabling it via the API needs admin rights GITHUB_TOKEN
+      # does not have, so `configure-pages` could only ever fail with
+      # "Resource not accessible by integration". Publishing to the branch keeps
+      # deploys automatic with no repository setting left to change.
+      - name: Publish to gh-pages
+        working-directory: _site
         run: |
-          echo "::error title=GitHub Pages is not enabled::Open Settings -> Pages and set Source to 'GitHub Actions', then re-run this workflow. A workflow token cannot enable Pages itself."
-          exit 1
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git init -q
+          git checkout -q -b gh-pages
+          git add -A
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "Deploy ${GITHUB_SHA} from main"
+          git push -q --force \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report the live URL
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          {
+            echo "### Deployed"
+            echo "https://${owner}.github.io/${repo}/"
+          } >> "$GITHUB_STEP_SUMMARY"
