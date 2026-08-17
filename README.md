@@ -124,6 +124,24 @@ you left off.
 The game also asks the browser for persistent storage on first launch, so site
 data is not evicted under pressure while a run is in progress.
 
+#### Where saving does *not* stick
+
+A page running inside a **sandboxed frame** — an embedded or preview viewer —
+gets an opaque origin, and the browser blocks storage there outright:
+`localStorage` throws `SecurityError` on the first write. In that environment
+nothing can be kept once the page closes, no matter what the game does.
+
+Jokerdeck now detects this at startup instead of failing quietly:
+
+- it falls back to a store that at least survives reloads of the same tab,
+- it says so on launch and again on the Save & Load screen,
+- and a failed slot save reports the real reason.
+
+To save properly, run the game from its **own web address** — GitHub Pages, any
+static host, or the home-screen install — or open `dist/jokerdeck.html`
+directly. All of those have normal storage. A save code carries a run from a
+sandboxed copy to a real one.
+
 ### Learning it
 
 Your first run offers a **guided walkthrough** — a spotlight and a coach bubble

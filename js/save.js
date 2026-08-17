@@ -1,4 +1,4 @@
-// localStorage persistence: the in-progress run, settings and lifetime stats.
+// Persistence: the in-progress run, manual save slots, settings and stats.
 
 import { serialize, deserialize } from './game.js';
 
@@ -8,34 +8,96 @@ export const SLOT_COUNT = 3;
 const SETTINGS_KEY = 'jokerdeck.settings.v1';
 const PROFILE_KEY = 'jokerdeck.profile.v1';
 
+// --------------------------------------------------------------- backend ----
+// localStorage is not always there. A sandboxed frame (an embedded or preview
+// copy of the game) gets an opaque origin, where touching localStorage throws
+// SecurityError outright; private browsing can refuse writes too. Silently
+// swallowing that made the game look like it saved when nothing was stored, so
+// the backend is probed once, up front, and the result is reported to the UI.
+
+/** Last-resort store kept in window.name: survives reloads in the same tab. */
+function makeTabStore() {
+  const PREFIX = 'JOKERDECK_STORE:';
+  const readAll = () => {
+    try {
+      return window.name.startsWith(PREFIX) ? JSON.parse(window.name.slice(PREFIX.length)) || {} : {};
+    } catch { return {}; }
+  };
+  const writeAll = (obj) => {
+    try { window.name = PREFIX + JSON.stringify(obj); } catch { /* nothing left to try */ }
+  };
+  return {
+    getItem: (k) => readAll()[k] ?? null,
+    setItem: (k, v) => { const o = readAll(); o[k] = String(v); writeAll(o); },
+    removeItem: (k) => { const o = readAll(); delete o[k]; writeAll(o); },
+  };
+}
+
+function pickBackend() {
+  const candidates = [
+    ['local', () => window.localStorage],
+    ['session', () => window.sessionStorage],
+  ];
+  for (const [mode, get] of candidates) {
+    try {
+      const store = get();
+      const probe = '__jokerdeck_probe__';
+      store.setItem(probe, '1');
+      const ok = store.getItem(probe) === '1';
+      store.removeItem(probe);
+      // `durable` means it survives fully closing the app, not just a reload.
+      if (ok) return { mode, store, durable: mode === 'local' };
+    } catch { /* blocked — try the next one */ }
+  }
+  return { mode: 'tab', store: makeTabStore(), durable: false };
+}
+
+const backend = pickBackend();
+
+/**
+ * How saving behaves in this environment.
+ *   local   — normal: survives closing the app
+ *   session — kept until this tab is closed
+ *   tab     — kept only across reloads of this tab
+ */
+export const storageStatus = () => ({ mode: backend.mode, durable: backend.durable });
+
 const read = (key, fallback) => {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = backend.store.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
   } catch { return fallback; }
 };
 const write = (key, value) => {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota or private mode */ }
+  try { backend.store.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
 };
 
 export function saveRun(G) {
-  try { localStorage.setItem(RUN_KEY, serialize(G)); } catch { /* ignore */ }
+  try { backend.store.setItem(RUN_KEY, serialize(G)); return true; } catch { return false; }
 }
 
 export function loadRun() {
   try {
-    const raw = localStorage.getItem(RUN_KEY);
+    const raw = backend.store.getItem(RUN_KEY);
     return raw ? deserialize(raw) : null;
   } catch { return null; }
 }
 
 export function clearRun() {
-  try { localStorage.removeItem(RUN_KEY); } catch { /* ignore */ }
+  try { backend.store.removeItem(RUN_KEY); } catch { /* ignore */ }
 }
 
 export function hasRun() {
-  try { return !!localStorage.getItem(RUN_KEY); } catch { return false; }
+  try { return !!backend.store.getItem(RUN_KEY); } catch { return false; }
 }
+
+/** Tiny string flags for other modules, so nothing else touches storage directly. */
+export const readFlag = (key) => {
+  try { return backend.store.getItem(key); } catch { return null; }
+};
+export const writeFlag = (key, value) => {
+  try { backend.store.setItem(key, String(value)); return true; } catch { return false; }
+};
 
 export const defaultSettings = { sound: true, haptics: true, fastScoring: false, confirmDiscard: false };
 export const loadSettings = () => ({ ...defaultSettings, ...read(SETTINGS_KEY, {}) });
@@ -86,19 +148,21 @@ function slotHeader(G) {
 
 export function saveToSlot(G, index) {
   try {
-    localStorage.setItem(SLOT_KEY(index), JSON.stringify({
+    backend.store.setItem(SLOT_KEY(index), JSON.stringify({
       header: slotHeader(G),
       run: serialize(G),
     }));
-    return true;
+    // Read it straight back: a write that reports success but stores nothing is
+    // exactly the failure this whole layer exists to catch.
+    return !!backend.store.getItem(SLOT_KEY(index));
   } catch {
-    return false;   // quota exhausted or private mode
+    return false;
   }
 }
 
 export function readSlot(index) {
   try {
-    const raw = localStorage.getItem(SLOT_KEY(index));
+    const raw = backend.store.getItem(SLOT_KEY(index));
     if (!raw) return null;
     const { header } = JSON.parse(raw);
     return header ?? null;
@@ -107,14 +171,14 @@ export function readSlot(index) {
 
 export function loadFromSlot(index) {
   try {
-    const raw = localStorage.getItem(SLOT_KEY(index));
+    const raw = backend.store.getItem(SLOT_KEY(index));
     if (!raw) return null;
     return deserialize(JSON.parse(raw).run);
   } catch { return null; }
 }
 
 export function clearSlot(index) {
-  try { localStorage.removeItem(SLOT_KEY(index)); } catch { /* ignore */ }
+  try { backend.store.removeItem(SLOT_KEY(index)); } catch { /* ignore */ }
 }
 
 export const listSlots = () =>

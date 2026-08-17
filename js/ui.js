@@ -34,6 +34,15 @@ let screen = 'menu';       // 'menu' | 'game'
 let shownCardIds = new Set();   // cards already dealt, so only new ones fly in
 let tutorial = null;
 
+/** Explanation shown wherever saving is not durable in this environment. */
+function storageWarning() {
+  const { mode } = Save.storageStatus();
+  if (mode === 'session') {
+    return 'This copy can only save until you close the tab. To keep runs for good, install the game to your home screen or open it from its own web address.';
+  }
+  return 'This copy of the game cannot store anything on your device — saves will be lost as soon as you close it. That usually means it is running inside an embedded viewer. Install it to your home screen, or open it at its own web address, and saving works normally. To carry this run over, copy its save code below.';
+}
+
 // -------------------------------------------------------------------- boot --
 
 export function boot() {
@@ -45,6 +54,10 @@ export function boot() {
   window.addEventListener('resize', layoutHand);
   installTestHooks();
   Save.requestPersistence();
+  if (!Save.storageStatus().durable) {
+    // Never let the game look like it saved when it cannot.
+    setTimeout(() => toast('Saves will not survive closing this copy — see Save & Load', true), 900);
+  }
   const saved = Save.loadRun();
   if (saved) { G = saved; screen = 'game'; render(); }
   else showMenu();
@@ -58,6 +71,7 @@ export function boot() {
 function installTestHooks() {
   window.__test = {
     seed: () => G?.seed ?? null,
+    storage: () => Save.storageStatus(),
     state: () => G,
     giveMoney: (n) => { if (G) { G.money += n; render(); } },
     bumpScore: (n) => { if (G) { G.score += n; render(); } },
@@ -1072,7 +1086,12 @@ function showSaveLoad() {
         text: header ? 'Overwrite' : 'Save',
         onclick: () => {
           if (header && !confirm(`Overwrite slot ${index + 1}?`)) return;
-          if (!Save.saveToSlot(G, index)) { sfx.error(); return toast('Could not save — storage is full', true); }
+          if (!Save.saveToSlot(G, index)) {
+            sfx.error();
+            return toast(Save.storageStatus().durable
+              ? 'Could not save — device storage is full'
+              : 'This copy cannot store saves — use a save code instead', true);
+          }
           sfx.buy();
           toast(`Saved to slot ${index + 1}`);
           showSaveLoad();
@@ -1115,8 +1134,15 @@ function showSaveLoad() {
     autocomplete: 'off',
   });
 
+  const durable = Save.storageStatus().durable;
+
   const body = [
-    el('div.muted', { text: 'Your run is saved automatically after every action — closing the app never loses progress. Slots are for keeping a run you can come back to on purpose.' }),
+    durable
+      ? el('div.muted', { text: 'Your run is saved automatically after every action — closing the app never loses progress. Slots are for keeping a run you can come back to on purpose.' })
+      : el('div.warn-box', {}, [
+        el('div.warn-title', { text: 'Saving is not permanent here' }),
+        el('div', { text: storageWarning() }),
+      ]),
     el('h3', { text: 'Save slots' }),
     el('div.slot-list', {}, Save.listSlots().map(slotRow)),
     el('h3', { text: 'Move a run to another device' }),
@@ -1256,6 +1282,13 @@ function showSettings() {
         toggle('Haptics', 'haptics', (v) => setHaptics(v)),
         toggle('Fast scoring', 'fastScoring'),
       ]),
+      el('h3', { text: 'Saving' }),
+      Save.storageStatus().durable
+        ? el('div.muted', { text: 'Saves are stored on this device and survive closing the app.' })
+        : el('div.warn-box', {}, [
+          el('div.warn-title', { text: 'Saving is not permanent here' }),
+          el('div', { text: storageWarning() }),
+        ]),
       el('h3', { text: 'Install' }),
       el('div.muted', { html: 'On iPhone: tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>.<br>On Android: tap the ⋮ menu, then <b>Install app</b> or <b>Add to Home screen</b>.' }),
       el('h3', { text: 'Data' }),

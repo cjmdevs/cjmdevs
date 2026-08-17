@@ -344,6 +344,48 @@ async function main() {
   step('320px-wide phone does not overflow', smallOk);
   await shot('15-small');
 
+  // -------------------------------------------------- sandboxed environment --
+  // The bug this covers: in a sandboxed frame (opaque origin) localStorage
+  // throws, and the game used to swallow it and silently save nothing. It must
+  // now still run, and must say plainly that saves will not survive.
+  // Always probe the single-file build here: an opaque origin cannot fetch ES
+  // modules (CORS rejects origin `null`), and the inlined bundle is what any
+  // embedded viewer actually serves.
+  const sandbox = await ctx.newPage();
+  const origin = BASE.replace(/\/[^/]*\.html$/, '');
+  await sandbox.goto(`${origin}/`);
+  await sandbox.evaluate(() => {
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts');
+    f.src = '/dist/jokerdeck.html';
+    f.style.cssText = 'width:390px;height:800px;border:0';
+    document.body.appendChild(f);
+  });
+  await sandbox.waitForTimeout(2600);
+
+  const frame = sandbox.frames().find((f) => f.url().includes('jokerdeck.html'));
+  if (frame) {
+    const sandboxState = await frame.evaluate(() => {
+      let storageThrows = false;
+      try { localStorage.setItem('x', '1'); localStorage.removeItem('x'); }
+      catch { storageThrows = true; }
+      return {
+        storageThrows,
+        rendered: !!document.querySelector('.sheet'),
+        durable: window.__test?.storage?.().durable,
+        mode: window.__test?.storage?.().mode,
+      };
+    });
+    step('game still runs where storage is blocked',
+      sandboxState.storageThrows && sandboxState.rendered,
+      `storage throws: ${sandboxState.storageThrows}, rendered: ${sandboxState.rendered}`);
+    step('non-durable storage is detected rather than silently failing',
+      sandboxState.durable === false, `mode=${sandboxState.mode} durable=${sandboxState.durable}`);
+  } else {
+    step('sandboxed frame loaded', false, 'iframe never loaded');
+  }
+  await sandbox.close();
+
   await browser.close();
 }
 

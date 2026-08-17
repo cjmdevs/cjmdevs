@@ -3,15 +3,12 @@
 // player to actually do the thing, on a live run.
 
 import { el, $ } from './util.js';
+import { readFlag, writeFlag } from './save.js';
 
 const SEEN_KEY = 'jokerdeck.tutorial.done';
 
-export const hasSeenTutorial = () => {
-  try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
-};
-export const markTutorialSeen = () => {
-  try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* private mode */ }
-};
+export const hasSeenTutorial = () => readFlag(SEEN_KEY) === '1';
+export const markTutorialSeen = () => writeFlag(SEEN_KEY, '1');
 
 /**
  * Steps run in order. Each has:

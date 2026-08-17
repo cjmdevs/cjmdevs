@@ -940,6 +940,22 @@ svg { image-rendering: pixelated; }
 
 /* ------------------------------------------------------------ save slots -- */
 
+.warn-box {
+  padding: 10px 11px;
+  border-radius: 5px;
+  background: #4a1f2e;
+  border: 2px solid var(--mult);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.warn-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--mult);
+  margin-bottom: 5px;
+}
+
+
 .slot-list { display: grid; gap: 8px; }
 .slot-row {
   display: grid;
