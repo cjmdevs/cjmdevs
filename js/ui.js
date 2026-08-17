@@ -11,7 +11,7 @@ import { DECKS, DECK_BY_KEY } from './decks.js';
 import * as Game from './game.js';
 import * as Save from './save.js';
 import { sfx, buzz, unlock, setEnabled, setHaptics } from './audio.js';
-import { jokerFace, consumableArt, packArt, cardBack } from './art.js';
+import { jokerFace, consumableArt, packArt, cardBack, suitPip, icon } from './art.js';
 import * as Anim from './anim.js';
 import { startTutorial, hasSeenTutorial, markTutorialSeen } from './tutorial.js';
 
@@ -24,6 +24,7 @@ const ids = [
   'hud-hands', 'hud-discards', 'hud-money', 'hud-ante', 'hud-round',
   'hand', 'btn-play', 'btn-discard', 'btn-sort-rank', 'btn-sort-suit',
   'btn-menu', 'btn-info', 'overlay', 'fx', 'toast', 'tip', 'deck-count',
+  'pile-draw', 'pile-discard',
 ];
 
 let G = null;
@@ -104,11 +105,12 @@ function cardEl(card, opts = {}) {
     return node;
   }
   if (!stone) {
+    const hue = suit.color === 'red' ? '#ef476f' : '#12161c';
     node.appendChild(el('span.rank', { text: RANK_LABEL[card.rank] }));
-    node.appendChild(el('span.pip-sm', { text: suit.pip }));
-    node.appendChild(el('span.pip-lg', { text: suit.pip }));
+    node.appendChild(el('span.pip-sm', { html: suitPip(card.suit, hue) }));
+    node.appendChild(el('span.pip-lg', { html: suitPip(card.suit, hue) }));
   } else {
-    node.appendChild(el('span.pip-lg', { text: '⬛' }));
+    node.appendChild(el('span.pip-lg', { html: icon('chip', '#3d4358') }));
   }
   if (card.seal) node.appendChild(el('div.seal', { 'data-seal': card.seal }));
   if (card.debuffed) node.classList.add('debuffed');
@@ -222,7 +224,7 @@ function renderHand() {
 
   // Only cards that were not on screen a moment ago get the dealing arc.
   if (fresh.length && G.phase === 'playing') {
-    const deck = dom.deckCount.getBoundingClientRect();
+    const deck = dom.pileDraw.getBoundingClientRect();
     Anim.dealIn(fresh, { from: { left: deck.left, top: deck.top }, stagger: 40 });
     sfx.deal();
   }
@@ -261,6 +263,30 @@ function renderHandName() {
 function renderPlayed() {
   dom.played.replaceChildren();
   for (const c of G.playedZone) dom.played.appendChild(cardEl(c, { reveal: true }));
+  renderPiles();
+}
+
+/** Card stacks in the table corners: what is left to draw, and what is spent. */
+function renderPiles() {
+  const stack = (n, faceUp) => {
+    const wrap = el('div.stack');
+    // Three offset slabs is enough to read as a pile at this size.
+    const layers = Math.min(3, Math.max(n > 0 ? 1 : 0, Math.ceil(n / 12)));
+    for (let i = layers - 1; i >= 0; i--) {
+      const layer = faceUp
+        ? el('div.slab', { style: { transform: `translate(${i * 2}px, ${-i * 2}px)` } })
+        : el('div', { html: cardBack(), style: { transform: `translate(${i * 2}px, ${-i * 2}px)` } });
+      wrap.appendChild(layer);
+    }
+    return wrap;
+  };
+
+  dom.pileDraw.replaceChildren(stack(G.drawPile.length, false), el('div.count', { text: String(G.drawPile.length) }));
+  dom.pileDraw.classList.toggle('empty', G.drawPile.length === 0);
+
+  const spent = G.discardPile.length;
+  dom.pileDiscard.replaceChildren(stack(spent, true), el('div.count', { text: String(spent) }));
+  dom.pileDiscard.classList.toggle('empty', spent === 0);
 }
 
 // -------------------------------------------------------------- inspection --
@@ -591,7 +617,10 @@ function blindSelectSheet() {
     const target = Math.round(blindTarget(G.ante, i, isBoss ? G.bossKey : null) * (G.mods?.blindMult ?? 1));
 
     return el(`div.blind-card${current ? '.current' : ''}${done ? '.done' : ''}${isBoss ? '.bossrow' : ''}`, {}, [
-      el('div.blind-badge', { text: done ? '✓' : ['🔹', '🔶', '💀'][i] }),
+      el('div.blind-badge', {
+        html: done ? '<span class="tick">&#10003;</span>'
+          : icon(['chip', 'star', 'skull'][i], ['#41a6f6', '#ffcd75', '#ef476f'][i]),
+      }),
       el('div', {}, [
         el('div.title', { text: boss ? boss.name : slot.name }),
         el('div.sub', { text: boss ? boss.desc : (i === 0 ? 'An easy opener.' : 'A little heavier.') }),
@@ -635,12 +664,12 @@ function blindSelectSheet() {
     el('div.blind-grid', {}, rows),
     tag && canSkip ? el('div', { style: { marginTop: '12px' } }, [
       el('h3', { text: 'Skip reward' }),
-      el('div.tag-pill', { text: `🏷 ${tag.name}` }),
+      el('div.tag-pill', { text: tag.name }),
       el('div.muted', { text: tag.desc }),
     ]) : null,
     G.tags.length ? el('div', { style: { marginTop: '12px' } }, [
       el('h3', { text: 'Tags held' }),
-      ...G.tags.map((t) => el('span.tag-pill', { text: `🏷 ${TAG_BY_KEY[t.key].name}` })),
+      ...G.tags.map((t) => el('span.tag-pill', { text: TAG_BY_KEY[t.key].name })),
     ]) : null,
     G.vouchers.has('directors_cut') && !G.bossRerolled ? el('button.btn.tiny', {
       text: 'Reroll Boss ($10)',
@@ -658,7 +687,7 @@ function cashoutSheet() {
   const c = G.cashout;
   const body = [
     el('div.center', { style: { padding: '10px 0' } }, [
-      el('div', { text: '💰', style: { fontSize: '42px' } }),
+      el('div.big-icon', { html: icon('coin', '#ffcd75') }),
       el('div', { text: `${c.blindName} defeated`, style: { fontWeight: '900', fontSize: '17px' } }),
       el('div.muted', { text: `Scored ${fmt(G.score)} of ${fmt(G.target)}` }),
     ]),
@@ -847,7 +876,7 @@ function packSheet() {
 function gameOverSheet() {
   const body = [
     el('div.center', { style: { padding: '16px 0' } }, [
-      el('div', { text: '💀', style: { fontSize: '54px' } }),
+      el('div.big-icon', { html: icon('skull', '#ef476f') }),
       el('div', { text: 'Run Over', style: { fontWeight: '900', fontSize: '22px' } }),
       el('div.muted', { text: `Beaten by ${BLIND_SLOTS[G.blindIndex].name} on Ante ${G.ante}` }),
     ]),
@@ -865,7 +894,7 @@ function winSheet() {
   sfx.win();
   const body = [
     el('div.center', { style: { padding: '16px 0' } }, [
-      el('div', { text: '👑', style: { fontSize: '54px' } }),
+      el('div.big-icon', { html: icon('crown', '#ffcd75') }),
       el('div', { text: 'You beat Ante 8!', style: { fontWeight: '900', fontSize: '22px' } }),
       el('div.muted', { text: `${DECK_BY_KEY[G.deckKey].name} · seed ${G.seed}` }),
     ]),
@@ -903,7 +932,7 @@ export function showMenu() {
 
   const body = [
     el('div.center', { style: { padding: '18px 0 10px' } }, [
-      el('div', { text: '🃏', style: { fontSize: '58px', lineHeight: '1' } }),
+      el('div.logo-mark', { html: jokerFace('jokerdeck-logo', '#ef476f') }),
       el('div', { text: 'JOKERDECK', style: { fontWeight: '900', fontSize: '30px', letterSpacing: '0.04em', marginTop: '6px' } }),
       el('div.muted', { text: 'A poker roguelike for one thumb' }),
     ]),
@@ -945,7 +974,7 @@ function showNewRun() {
         void e;
       },
     }, [
-      el('div', { text: '🂠', style: { fontSize: '24px' } }),
+      el('div.deck-mark', { html: cardBack() }),
       el('div', {}, [el('div.cname', { text: d.name }), el('div.cdesc', { text: d.desc })]),
     ])));
 
@@ -1020,7 +1049,7 @@ function showRunInfo() {
   });
 
   const vouchers = [...G.vouchers].map((k) => el('span.tag-pill', { text: VOUCHER_BY_KEY[k]?.name ?? k }));
-  const tags = G.tags.map((t) => el('span.tag-pill', { text: `🏷 ${TAG_BY_KEY[t.key].name}` }));
+  const tags = G.tags.map((t) => el('span.tag-pill', { text: TAG_BY_KEY[t.key].name }));
   const boss = G.blindIndex === 2 ? BOSS_BY_KEY[G.bossKey] : null;
 
   openSheet(sheet({

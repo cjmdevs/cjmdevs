@@ -96,7 +96,7 @@ const __req = (name) => {
 };
 `;
 
-const css = read('css/style.css');
+const css = read('css/fonts.css') + '\n' + read('css/style.css');
 const icon180 = `data:image/png;base64,${b64('icons/icon-180.png')}`;
 const icon192 = `data:image/png;base64,${b64('icons/icon-192.png')}`;
 const icon512 = `data:image/png;base64,${b64('icons/icon-512.png')}`;

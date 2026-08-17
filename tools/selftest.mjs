@@ -689,12 +689,31 @@ test('joker order rewards putting multipliers last', () => {
 
 // ------------------------------------------------------- deployment sanity --
 
-test('the service worker precaches every shipped module', () => {
+test('the service worker precaches every shipped module and stylesheet', () => {
   const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-  const modules = readdirSync(new URL('../js/', import.meta.url)).filter((f) => f.endsWith('.js'));
-  const missing = modules.filter((m) => !sw.includes(`js/${m}`));
-  assert.equal(missing.length, 0,
-    `sw.js would 404 offline for: ${missing.join(', ')}`);
+  const shipped = [
+    ...readdirSync(new URL('../js/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => `js/${f}`),
+    ...readdirSync(new URL('../css/', import.meta.url)).filter((f) => f.endsWith('.css')).map((f) => `css/${f}`),
+  ];
+  const missing = shipped.filter((f) => !sw.includes(f));
+  assert.equal(missing.length, 0, `sw.js would 404 offline for: ${missing.join(', ')}`);
+});
+
+test('the bundler inlines every stylesheet', () => {
+  const bundler = readFileSync(new URL('../tools/bundle.mjs', import.meta.url), 'utf8');
+  const sheets = readdirSync(new URL('../css/', import.meta.url)).filter((f) => f.endsWith('.css'));
+  const missing = sheets.filter((f) => !bundler.includes(`css/${f}`));
+  assert.equal(missing.length, 0, `bundle.mjs omits: ${missing.join(', ')}`);
+});
+
+test('the stylesheet contains no soft gradients', () => {
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const offenders = css.split('\n')
+    .map((line, i) => [i + 1, line])
+    .filter(([, line]) => /(linear|radial|conic)-gradient/.test(line)
+      && !/repeating-linear-gradient/.test(line));
+  assert.equal(offenders.length, 0,
+    `flat-colour rule broken at: ${offenders.map(([n]) => n).join(', ')}`);
 });
 
 test('the single-file bundler knows about every module', () => {

@@ -1,12 +1,13 @@
 // Cache-first service worker. Bump CACHE when shipping new assets.
 
-const CACHE = 'jokerdeck-v2';
+const CACHE = 'jokerdeck-v3';
 
 const ASSETS = [
   './',
   'index.html',
   'manifest.webmanifest',
   'css/style.css',
+  'css/fonts.css',
   'js/main.js',
   'js/ui.js',
   'js/game.js',

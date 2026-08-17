@@ -115,9 +115,27 @@ exactly how a pair of Kings turns into 180 points.
 
 ### The art
 
-Every joker's face is generated from its own key — hat, eyes, mouth and palette
-are all picked deterministically, so the same joker always looks the same and
-no image files ship at all. See `js/art.js`.
+Pixel art, drawn on a fixed grid and emitted as SVG rects with
+`shape-rendering: crispEdges`. Every joker's face is generated from its own key
+— hat, eyes, mouth and palette are picked deterministically, so a joker always
+looks the same and no image files ship at all. Suits, card backs, planets,
+spectres and the interface icons are all drawn the same way. See `js/art.js`.
+
+The art direction follows what this genre actually looks like rather than
+defaulting to soft UI:
+
+- **No gradients.** Every fill is a flat colour from one fixed 16-colour
+  palette. A test fails the build if a soft gradient reappears in the
+  stylesheet.
+- **Two pixel typefaces.** Silkscreen carries numbers, labels and buttons;
+  Pixelify Sans keeps running text readable. Both are embedded as data URIs in
+  `css/fonts.css`, so typography survives offline and a strict CSP.
+- **CRT scanlines** over the whole app, menus included — the retro framing is
+  part of the world, not a filter on the board.
+- Thick ink outlines, hard offset shadows, and small corner radii throughout.
+
+Regenerate the embedded fonts with `node tools/make_fonts.mjs`. Both faces are
+SIL Open Font License 1.1.
 
 ### What's in it
 
@@ -146,7 +164,8 @@ browser; editing a file and reloading is the whole dev loop.
 index.html              app shell
 manifest.webmanifest    home-screen install metadata
 sw.js                   service worker (offline cache)
-css/style.css           all styling
+css/style.css           all styling (flat colour, no gradients)
+css/fonts.css           the two pixel typefaces, inlined as data URIs
 js/
   main.js               entry point, service worker registration
   ui.js                 rendering and input — owns the DOM
@@ -159,7 +178,7 @@ js/
   shop.js               shop stock, packs, vouchers
   decks.js              starting decks
   save.js               localStorage persistence
-  art.js                procedural cartoon SVG — joker faces, card backs
+  art.js                procedural pixel art — joker faces, suits, icons
   anim.js               FLIP flights, confetti, screen shake, staggered reveals
   tutorial.js           the guided walkthrough (spotlight + coach bubble)
   audio.js              WebAudio sound effects (no asset files)
@@ -176,7 +195,7 @@ ever changing.
 ### Tests
 
 ```bash
-npm test                       # 64 assertions: rules, data sanity, deploy drift
+npm test                       # 66 assertions: rules, data sanity, deploy drift
 node tools/simulate.mjs 400    # fuzz: bots 400 full runs, fails on crash/NaN
 node tools/balance.mjs 150     # difficulty probe with a greedy bot
 npm i -D playwright
