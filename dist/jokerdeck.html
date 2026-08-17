@@ -43,8 +43,14 @@
 
   --card-w: clamp(46px, 13.2vw, 72px);
   --card-h: calc(var(--card-w) * 1.4);
-  --radius: 10px;
+  --radius: 12px;
   --pad: 8px;
+
+  /* Cartoon language: one ink colour, thick outlines, hard offset shadows. */
+  --ink-line: #1b232c;
+  --stroke: 2.5px;
+  --toon-shadow: 0 3px 0 var(--ink-line);
+  --toon-shadow-lg: 0 5px 0 var(--ink-line);
 
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -116,7 +122,8 @@ button { font-family: inherit; color: inherit; }
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid var(--line);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 2px 0 var(--ink-line);
   background: var(--panel);
   font-size: 17px;
   font-weight: 700;
@@ -137,7 +144,8 @@ button { font-family: inherit; color: inherit; }
   padding: 0 12px;
   border-radius: 12px;
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  border: 1px solid var(--line);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 2px 0 var(--ink-line);
   overflow: hidden;
 }
 .blind-chip .blind-name {
@@ -239,9 +247,9 @@ button { font-family: inherit; color: inherit; }
   position: relative;
   align-self: center;          /* centre in the slack instead of filling it */
   width: 100%;
-  min-height: calc(var(--card-h) * 1.9);
+  min-height: calc(var(--card-h) * 2.1);
   /* Cap the felt so a tall phone does not leave one enormous empty table. */
-  max-height: min(100%, calc(var(--card-h) * 3.1));
+  max-height: min(100%, calc(var(--card-h) * 4));
   display: grid;
   grid-template-rows: auto auto auto;
   place-items: center;
@@ -251,8 +259,8 @@ button { font-family: inherit; color: inherit; }
   background:
     radial-gradient(75% 90% at 50% 42%, rgba(58, 128, 106, 0.42), transparent 72%),
     linear-gradient(180deg, rgba(28, 58, 52, 0.5), rgba(0, 0, 0, 0.28));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45);
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), var(--toon-shadow);
 }
 
 .calc {
@@ -264,18 +272,20 @@ button { font-family: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .calc .chips {
-  padding: 2px 10px;
-  border-radius: 8px;
+  padding: 3px 12px;
+  border-radius: 10px;
   background: #06263d;
   color: var(--chips);
-  border: 1px solid #1d5c8a;
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: 0 3px 0 var(--ink-line);
 }
 .calc .mult {
-  padding: 2px 10px;
-  border-radius: 8px;
+  padding: 3px 12px;
+  border-radius: 10px;
   background: #3c1512;
   color: var(--mult);
-  border: 1px solid #8a2d27;
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: 0 3px 0 var(--ink-line);
 }
 .calc .times { color: var(--ink-dim); font-size: 0.8em; }
 .calc.bump { animation: pop 200ms ease-out; }
@@ -306,7 +316,8 @@ button { font-family: inherit; color: inherit; }
   padding: 4px 2px;
   border-radius: 10px;
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 2px 0 var(--ink-line);
 }
 .hud-label {
   font-size: 9px;
@@ -350,13 +361,15 @@ button { font-family: inherit; color: inherit; }
   border-radius: 12px;
   padding: 12px 10px;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
-  transition: transform 80ms ease, filter 120ms ease;
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: var(--toon-shadow);
+  transition: transform 80ms ease, filter 120ms ease, box-shadow 80ms ease;
 }
-.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink-line); }
+.btn:focus-visible { outline: 3px solid var(--chips); outline-offset: 2px; }
 .btn:disabled { filter: grayscale(0.7) brightness(0.6); cursor: default; }
 .btn.play { background: linear-gradient(180deg, #2f7ee0, #1f5fb4); color: #fff; }
 .btn.discard { background: linear-gradient(180deg, #e0504a, #b53832); color: #fff; }
@@ -387,15 +400,21 @@ button { font-family: inherit; color: inherit; }
   width: var(--card-w);
   height: var(--card-h);
   border-radius: var(--radius);
-  background: linear-gradient(170deg, #fdfdfb, #e6e6df);
+  background: linear-gradient(170deg, #fffef8, #eceadf);
   color: #16202a;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: var(--toon-shadow);
   transition: transform 140ms cubic-bezier(.2,1.4,.4,1), box-shadow 140ms ease, filter 160ms ease;
   will-change: transform;
   cursor: pointer;
 }
-.card.sel { transform: translateY(-14px); box-shadow: 0 8px 14px rgba(0,0,0,.5), inset 0 0 0 2px var(--chips); }
-.card.forced { box-shadow: 0 8px 14px rgba(0,0,0,.5), inset 0 0 0 2px var(--legendary); }
+.card.sel {
+  transform: translateY(-15px) rotate(-2deg);
+  border-color: var(--chips);
+  box-shadow: 0 8px 0 var(--ink-line), 0 0 0 3px rgba(41,168,255,.35);
+}
+.card.forced { border-color: var(--legendary); box-shadow: 0 6px 0 var(--ink-line), 0 0 0 3px rgba(180,91,224,.35); }
+.card.flew { opacity: 0; transition: opacity 90ms; }
 .card:active { filter: brightness(1.08); }
 .card.debuffed { filter: grayscale(1) brightness(0.55); }
 .card.debuffed::after {
@@ -412,9 +431,11 @@ button { font-family: inherit; color: inherit; }
   position: absolute;
   top: 3px;
   left: 4px;
-  font-size: calc(var(--card-w) * 0.34);
+  font-size: calc(var(--card-w) * 0.36);
   font-weight: 900;
   line-height: 1;
+  letter-spacing: -0.04em;
+  -webkit-text-stroke: 0.5px rgba(0,0,0,.25);
 }
 .card .pip-sm {
   position: absolute;
@@ -427,16 +448,16 @@ button { font-family: inherit; color: inherit; }
   position: absolute;
   right: 4px;
   bottom: 3px;
-  font-size: calc(var(--card-w) * 0.5);
+  font-size: calc(var(--card-w) * 0.54);
   line-height: 1;
-  opacity: 0.92;
+  opacity: 0.95;
 }
 .card[data-color="red"] { color: #cf2b3a; }
 .card[data-color="black"] { color: #1a232b; }
 
 /* Face-down (The Sun boss). */
-.card.facedown { background: repeating-linear-gradient(45deg, #2a4b7c 0 6px, #22406b 6px 12px); }
-.card.facedown > * { display: none; }
+.card.facedown { background: #3a5f9e; padding: 0; overflow: hidden; }
+.card.facedown svg { width: 100%; height: 100%; display: block; }
 
 /* Enhancements repaint the card face. */
 .card[data-enh="bonus"] { background: linear-gradient(170deg, #cfe6ff, #a9cdf2); }
@@ -484,39 +505,49 @@ button { font-family: inherit; color: inherit; }
 .joker {
   position: relative;
   flex: 0 0 auto;
-  width: calc(var(--card-w) * 0.96);
-  height: calc(var(--card-h) * 0.92);
+  width: calc(var(--card-w) * 1.06);
+  height: calc(var(--card-h) * 0.94);
   border-radius: var(--radius);
   padding: 4px 3px;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 2px;
-  background: linear-gradient(170deg, #f6f3ea, #ddd7c8);
+  background: linear-gradient(170deg, #fbf7ec, #e4ddcc);
   color: #1b2229;
-  box-shadow: 0 2px 4px rgba(0,0,0,.45);
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: var(--toon-shadow);
   overflow: hidden;
   cursor: pointer;
   transition: transform 120ms ease;
+  animation: joker-idle 3.4s ease-in-out infinite;
 }
+.joker:nth-child(2n) { animation-delay: -1.1s; }
+.joker:nth-child(3n) { animation-delay: -2.2s; }
 .joker:active { transform: scale(0.95); }
 .joker .jname {
-  font-size: calc(var(--card-w) * 0.17);
+  font-size: calc(var(--card-w) * 0.15);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1;
   text-align: center;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .joker .jart {
-  border-radius: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0,0,0,.06);
   display: grid;
-  place-items: center;
-  font-size: calc(var(--card-w) * 0.42);
-  background: rgba(0,0,0,.08);
+  place-items: stretch;
 }
-.joker[data-rarity="1"] { border-bottom: 4px solid var(--common); }
-.joker[data-rarity="2"] { border-bottom: 4px solid var(--uncommon); }
-.joker[data-rarity="3"] { border-bottom: 4px solid var(--rare); }
-.joker[data-rarity="4"] { border-bottom: 4px solid var(--legendary); }
+.joker .jart svg { width: 100%; height: 100%; display: block; }
+.joker[data-rarity="1"] { border-bottom: 5px solid var(--common); }
+.joker[data-rarity="2"] { border-bottom: 5px solid var(--uncommon); }
+.joker[data-rarity="3"] { border-bottom: 5px solid var(--rare); }
+.joker[data-rarity="4"] { border-bottom: 5px solid var(--legendary); }
 .joker.trigger { animation: score-hop 360ms cubic-bezier(.2,1.5,.4,1); z-index: 6; }
 .joker.off { filter: grayscale(1) brightness(.6); }
 .joker[data-ed]::before {
@@ -546,10 +577,14 @@ button { font-family: inherit; color: inherit; }
   text-align: center;
   line-height: 1.05;
   color: #16202a;
-  box-shadow: 0 2px 4px rgba(0,0,0,.45);
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: var(--toon-shadow);
   cursor: pointer;
+  overflow: hidden;
 }
-.consumable .cicon { font-size: calc(var(--card-w) * 0.4); }
+.consumable .cicon { width: 100%; min-height: 0; display: grid; place-items: center; }
+.consumable .cicon svg { width: 78%; height: auto; display: block; }
+.consumable .cname { font-size: calc(var(--card-w) * 0.15); line-height: 1.05; }
 .consumable[data-type="tarot"] { background: linear-gradient(170deg, #d8c2f5, #b294e0); }
 .consumable[data-type="planet"] { background: linear-gradient(170deg, #b8dcf5, #86b6e0); }
 .consumable[data-type="spectral"] { background: linear-gradient(170deg, #bfe8e0, #7fc4bb); }
@@ -557,7 +592,7 @@ button { font-family: inherit; color: inherit; }
 
 .slot-empty {
   flex: 0 0 auto;
-  width: calc(var(--card-w) * 0.96);
+  width: calc(var(--card-w) * 1.06);
   height: calc(var(--card-h) * 0.92);
   border-radius: var(--radius);
   border: 1px dashed var(--line);
@@ -812,6 +847,93 @@ button { font-family: inherit; color: inherit; }
 .tip .trarity { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
 .tip .tsell { margin-top: 5px; color: var(--money); font-weight: 800; font-size: 11.5px; }
 
+
+/* ------------------------------------------------------------- tutorial -- */
+
+.tut-layer { position: fixed; inset: 0; z-index: 95; pointer-events: none; }
+
+/* The spotlight is one element with an enormous shadow, so the whole screen
+   dims except the hole. Cheaper and smoother than four dimming panels. */
+.tut-hole {
+  position: absolute;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(6, 10, 14, 0.78);
+  border: 3px solid var(--gold);
+  transition: left 260ms ease, top 260ms ease, width 260ms ease, height 260ms ease, opacity 200ms;
+  pointer-events: none;
+}
+
+.tut-bubble {
+  position: absolute;
+  pointer-events: auto;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fdfaf0, #efe6d2);
+  color: #1b232c;
+  border: var(--stroke) solid var(--ink-line);
+  box-shadow: var(--toon-shadow-lg);
+  transition: left 260ms ease, top 260ms ease;
+}
+.tut-count { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: #7a6a4e; text-transform: uppercase; }
+.tut-text { margin: 4px 0 10px; font-size: 14px; line-height: 1.45; font-weight: 600; }
+.tut-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tut-next { background: var(--good); color: #06210f; }
+.tut-hint { font-size: 12px; font-style: italic; color: #7a6a4e; }
+.tut-skip {
+  background: none; border: none; padding: 4px 2px;
+  font-size: 12px; font-weight: 700; color: #7a6a4e;
+  text-decoration: underline; cursor: pointer;
+}
+.tut-mascot { width: 96px; margin: 0 auto 10px; }
+.tut-mascot svg { width: 100%; height: auto; display: block; border-radius: 12px; border: var(--stroke) solid var(--ink-line); }
+
+/* Elements under the spotlight must stay tappable through the dim layer. */
+.tut-layer ~ * { pointer-events: auto; }
+
+/* ------------------------------------------------------------- confetti -- */
+
+.confetti {
+  position: absolute;
+  width: 9px;
+  height: 13px;
+  border-radius: 2px;
+  will-change: transform, opacity;
+}
+
+/* -------------------------------------------------- worked scoring example */
+
+.example {
+  margin: 10px 0 4px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--line);
+}
+.ex-body { display: grid; gap: 3px; margin-top: 10px; }
+.ex-line {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12.5px;
+}
+.ex-line span:first-child { color: var(--ink-dim); }
+.ex-line span:last-child { font-weight: 800; text-align: right; }
+.ex-total {
+  display: flex; justify-content: space-between;
+  margin-top: 7px; padding-top: 7px;
+  border-top: 2px solid var(--line);
+  font-weight: 900; font-size: 14px;
+}
+.ex-total span:last-child { color: var(--good); }
+
+/* ------------------------------------------------------------- pack art -- */
+
+.pack-art { width: 46px; height: 46px; }
+.pack-art svg { width: 100%; height: 100%; display: block; }
+
+@keyframes joker-idle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-2.5px) rotate(-1.2deg); }
+}
+
 @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }
 @keyframes score-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-16px) scale(1.08); } 100% { transform: translateY(0); } }
 @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.8); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -150%) scale(1); } }
@@ -827,7 +949,12 @@ button { font-family: inherit; color: inherit; }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .joker { animation: none; }
 }
 
 /* Landscape / tablet: give the board more room and shrink the hand fan. */
@@ -3621,6 +3748,9 @@ function makeApi(G, rng) {
   };
 }
 
+/** Used only by the browser smoke test to stage a board quickly. */
+const makeTestJoker = (key) => makeJoker(key);
+
 function levelHand(G, key, n = 1) {
   G.handLevels[key].level = Math.max(1, G.handLevels[key].level + n);
   return G.handLevels[key].level;
@@ -3669,7 +3799,7 @@ function deserialize(raw) {
   return G;
 }
 
-return { SAVE_VERSION, WIN_ANTE, newRun, recompute, activeBoss, activeRules, currentTarget, ensureBoss, rerollBoss, startBlind, canSkipBlind, skipBlind, toggleSelect, selectedCards, sortHand, moveCard, playBlocker, discardBlocker, scoreSelected, commitHand, discardSelected, leaveCashout, continueEndless, enterShop, rerollShop, itemPrice, buyItem, hasJokerRoom, buyVoucher, buyPack, leaveShop, pickFromPack, closePack, sellJoker, sellConsumable, moveJoker, addConsumable, consumableBlocker, useConsumable, levelHand, destroyCard, serialize, deserialize };
+return { SAVE_VERSION, WIN_ANTE, newRun, recompute, activeBoss, activeRules, currentTarget, ensureBoss, rerollBoss, startBlind, canSkipBlind, skipBlind, toggleSelect, selectedCards, sortHand, moveCard, playBlocker, discardBlocker, scoreSelected, commitHand, discardSelected, leaveCashout, continueEndless, enterShop, rerollShop, itemPrice, buyItem, hasJokerRoom, buyVoucher, buyPack, leaveShop, pickFromPack, closePack, sellJoker, sellConsumable, moveJoker, addConsumable, consumableBlocker, useConsumable, makeTestJoker, levelHand, destroyCard, serialize, deserialize };
 });
 
 __def('audio.js', function () {
@@ -3835,6 +3965,519 @@ function recordRun(G, won) {
 return { saveRun, loadRun, clearRun, hasRun, defaultSettings, loadSettings, saveSettings, defaultProfile, loadProfile, saveProfile, recordRun };
 });
 
+__def('art.js', function () {
+// Procedural cartoon art. Every joker gets a face built from its own key, so
+// the same joker always looks the same without shipping a single image file.
+
+const PALETTES = [
+  { skin: '#ffd9a8', shade: '#e8b479', hat: '#e05b5b', hat2: '#c23f3f', trim: '#f6d76b' },
+  { skin: '#ffe0c2', shade: '#e6bd95', hat: '#4d9de0', hat2: '#3579b8', trim: '#f2f2f2' },
+  { skin: '#d7f0c8', shade: '#aed6a0', hat: '#7b5bd6', hat2: '#5c40ad', trim: '#ffd166' },
+  { skin: '#ffcfd8', shade: '#e8a6b4', hat: '#2fa96b', hat2: '#1f8250', trim: '#fff0a8' },
+  { skin: '#cfe9ff', shade: '#a3c9e8', hat: '#f0803c', hat2: '#c95f22', trim: '#ffe9b0' },
+  { skin: '#f3d9ff', shade: '#d2aee8', hat: '#e0405b', hat2: '#b32b43', trim: '#9be0d2' },
+];
+
+/** Stable 32-bit hash so a joker's look never drifts between sessions. */
+function hash(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Deterministic small-integer stream derived from one key. */
+function picker(key) {
+  let h = hash(key);
+  return (n) => {
+    h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+    return h % n;
+  };
+}
+
+// ------------------------------------------------------------------- parts --
+
+const HATS = [
+  // Jester cap with three bells.
+  (p) => `
+    <path d="M18 34 Q14 12 30 16 Q50 2 70 16 Q86 12 82 34 Z" fill="${p.hat}" stroke="#20262e" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="18" cy="33" r="6" fill="${p.trim}" stroke="#20262e" stroke-width="3"/>
+    <circle cx="50" cy="10" r="6" fill="${p.trim}" stroke="#20262e" stroke-width="3"/>
+    <circle cx="82" cy="33" r="6" fill="${p.trim}" stroke="#20262e" stroke-width="3"/>`,
+  // Top hat.
+  (p) => `
+    <rect x="30" y="6" width="40" height="26" rx="4" fill="${p.hat}" stroke="#20262e" stroke-width="3"/>
+    <rect x="30" y="22" width="40" height="8" fill="${p.trim}" stroke="#20262e" stroke-width="3"/>
+    <rect x="18" y="30" width="64" height="8" rx="4" fill="${p.hat2}" stroke="#20262e" stroke-width="3"/>`,
+  // Crown.
+  (p) => `
+    <path d="M22 34 L22 12 L34 22 L50 8 L66 22 L78 12 L78 34 Z" fill="${p.trim}" stroke="#20262e" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="50" cy="20" r="4" fill="${p.hat}" stroke="#20262e" stroke-width="2.5"/>`,
+  // Wizard cone.
+  (p) => `
+    <path d="M26 36 L50 4 L74 36 Z" fill="${p.hat}" stroke="#20262e" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="44" cy="24" r="3" fill="${p.trim}"/>
+    <circle cx="56" cy="16" r="2.5" fill="${p.trim}"/>`,
+  // Bare head with a tuft of hair.
+  (p) => `
+    <path d="M32 30 Q38 16 50 22 Q62 14 68 30" fill="none" stroke="${p.hat}" stroke-width="7" stroke-linecap="round"/>`,
+];
+
+const EYES = [
+  () => `<circle cx="39" cy="56" r="5.5" fill="#20262e"/><circle cx="61" cy="56" r="5.5" fill="#20262e"/>
+         <circle cx="41" cy="54" r="2" fill="#fff"/><circle cx="63" cy="54" r="2" fill="#fff"/>`,
+  () => `<path d="M34 56 L44 56 M39 51 L39 61" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>
+         <path d="M56 56 L66 56 M61 51 L61 61" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>`,
+  () => `<path d="M33 58 Q39 48 45 58" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>
+         <path d="M55 58 Q61 48 67 58" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>`,
+  (p) => `<circle cx="39" cy="56" r="7" fill="#fff" stroke="#20262e" stroke-width="3"/>
+          <circle cx="61" cy="56" r="7" fill="#fff" stroke="#20262e" stroke-width="3"/>
+          <circle cx="40" cy="57" r="3" fill="${p.hat2}"/><circle cx="62" cy="57" r="3" fill="${p.hat2}"/>`,
+  () => `<path d="M33 54 Q39 62 45 54" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>
+         <path d="M55 54 Q61 62 67 54" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>`,
+  () => `<path d="M39 49 L39 63" stroke="#20262e" stroke-width="4.5" stroke-linecap="round"/>
+         <circle cx="61" cy="56" r="6" fill="#20262e"/><circle cx="63" cy="54" r="2" fill="#fff"/>`,
+];
+
+const MOUTHS = [
+  () => `<path d="M38 70 Q50 82 62 70" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>`,
+  (p) => `<path d="M38 68 Q50 82 62 68 Z" fill="${p.hat2}" stroke="#20262e" stroke-width="3" stroke-linejoin="round"/>`,
+  () => `<path d="M40 74 Q50 66 60 74" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>`,
+  (p) => `<ellipse cx="50" cy="73" rx="9" ry="7" fill="${p.hat2}" stroke="#20262e" stroke-width="3"/>
+          <path d="M46 76 Q50 82 54 76" fill="#ff8098"/>`,
+  () => `<path d="M38 72 L62 72" stroke="#20262e" stroke-width="4" stroke-linecap="round"/>
+         <path d="M44 72 L44 78" stroke="#20262e" stroke-width="3" stroke-linecap="round"/>`,
+  () => `<path d="M38 68 Q44 78 50 70 Q56 78 62 68" fill="none" stroke="#20262e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+];
+
+/**
+ * A cartoon joker portrait as an inline SVG string.
+ * `rarityColor` tints the backdrop so rarity still reads at a glance.
+ */
+function jokerFace(key, rarityColor = '#3a8fd6') {
+  const pick = picker(key);
+  const p = PALETTES[pick(PALETTES.length)];
+  const hat = HATS[pick(HATS.length)];
+  const eyes = EYES[pick(EYES.length)];
+  const mouth = MOUTHS[pick(MOUTHS.length)];
+  const cheeks = pick(2) === 0;
+
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><clipPath id="cl${hash(key).toString(36)}"><rect x="0" y="0" width="100" height="100" rx="10"/></clipPath></defs>
+    <g clip-path="url(#cl${hash(key).toString(36)})">
+      <rect x="0" y="0" width="100" height="100" fill="${rarityColor}" opacity="0.22"/>
+      <circle cx="50" cy="62" r="30" fill="${p.skin}" stroke="#20262e" stroke-width="3.5"/>
+      <path d="M22 62 Q26 82 34 88" fill="none" stroke="${p.shade}" stroke-width="5" stroke-linecap="round"/>
+      ${cheeks ? `<circle cx="30" cy="68" r="5" fill="#ff9aa8" opacity="0.75"/><circle cx="70" cy="68" r="5" fill="#ff9aa8" opacity="0.75"/>` : ''}
+      ${eyes(p)}
+      ${mouth(p)}
+      ${hat(p)}
+    </g>
+  </svg>`;
+}
+
+// ------------------------------------------------------------- consumables --
+
+function consumableArt(type) {
+  if (type === 'planet') {
+    return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="50" cy="50" r="26" fill="#6fb7f0" stroke="#20262e" stroke-width="4"/>
+      <path d="M32 42 Q42 36 52 42 Q44 50 32 42Z" fill="#3d86c4"/>
+      <circle cx="62" cy="60" r="7" fill="#3d86c4"/>
+      <ellipse cx="50" cy="52" rx="42" ry="12" fill="none" stroke="#f6d76b" stroke-width="6" transform="rotate(-18 50 52)"/>
+      <ellipse cx="50" cy="52" rx="42" ry="12" fill="none" stroke="#20262e" stroke-width="2.5" transform="rotate(-18 50 52)"/>
+    </svg>`;
+  }
+  if (type === 'spectral') {
+    return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M24 78 L24 44 A26 26 0 0 1 76 44 L76 78 L66 70 L58 78 L50 70 L42 78 L34 70 Z"
+            fill="#eaf7f4" stroke="#20262e" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="41" cy="48" r="5" fill="#20262e"/><circle cx="59" cy="48" r="5" fill="#20262e"/>
+      <path d="M43 62 Q50 70 57 62" fill="none" stroke="#20262e" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>`;
+  }
+  // Tarot: an eye inside a starburst.
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M50 8 L58 34 L84 26 L66 48 L88 62 L60 62 L62 90 L46 68 L26 84 L34 58 L10 50 L36 40 Z"
+          fill="#c9a3f0" stroke="#20262e" stroke-width="3.5" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="52" rx="17" ry="11" fill="#fff" stroke="#20262e" stroke-width="3"/>
+    <circle cx="50" cy="52" r="6" fill="#6b3fa8" stroke="#20262e" stroke-width="2.5"/>
+  </svg>`;
+}
+
+function packArt(kind) {
+  const inner = {
+    tarot: consumableArt('tarot'),
+    planet: consumableArt('planet'),
+    spectral: consumableArt('spectral'),
+    joker: jokerFace('packjoker', '#e0a86c'),
+    card: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="20" y="14" width="46" height="66" rx="8" fill="#fdfbf4" stroke="#20262e" stroke-width="4" transform="rotate(-10 43 47)"/>
+      <rect x="34" y="20" width="46" height="66" rx="8" fill="#fdfbf4" stroke="#20262e" stroke-width="4" transform="rotate(8 57 53)"/>
+      <text x="57" y="66" font-size="34" font-weight="900" text-anchor="middle" fill="#cf2b3a" transform="rotate(8 57 53)">♥</text>
+    </svg>`,
+  };
+  return inner[kind] ?? inner.card;
+}
+
+/** The card back, used for face-down draws. */
+function cardBack() {
+  return `<svg viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="cardback-svg">
+    <rect x="2" y="2" width="46" height="66" rx="7" fill="#3a5f9e" stroke="#20262e" stroke-width="3"/>
+    <path d="M25 12 L37 35 L25 58 L13 35 Z" fill="#2b4778" stroke="#8fb4e8" stroke-width="2"/>
+    <circle cx="25" cy="35" r="5" fill="#f6d76b" stroke="#20262e" stroke-width="2"/>
+  </svg>`;
+}
+
+return { jokerFace, consumableArt, packArt, cardBack };
+});
+
+__def('anim.js', function () {
+// Animation helpers. Everything here is decoration: if a caller skips these,
+// the game still plays correctly, so each one degrades to a no-op cleanly.
+
+const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Wait for an element's running animations, with a hard ceiling. */
+function settled(node, cap = 700) {
+  if (!node?.getAnimations) return sleep(0);
+  const running = node.getAnimations();
+  if (!running.length) return sleep(0);
+  return Promise.race([
+    Promise.allSettled(running.map((a) => a.finished)),
+    sleep(cap),
+  ]);
+}
+
+/**
+ * FLIP: move `node` as if it had travelled from `fromRect` to where it is now.
+ * Used to fly cards from the hand into the play area without reparenting jank.
+ */
+function flipFrom(node, fromRect, { duration = 340, delay = 0, spin = 0 } = {}) {
+  if (reduced()) return sleep(0);
+  const to = node.getBoundingClientRect();
+  const dx = fromRect.left - to.left;
+  const dy = fromRect.top - to.top;
+  if (!dx && !dy && !spin) return sleep(0);
+
+  const anim = node.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px) rotate(${-spin}deg)`, offset: 0 },
+      { transform: 'translate(0, 0) rotate(0deg)', offset: 1 },
+    ],
+    { duration, delay, easing: 'cubic-bezier(.2, .9, .3, 1.2)', fill: 'backwards' },
+  );
+  return anim.finished.catch(() => {});
+}
+
+/** Deal cards in with a staggered arc from the deck corner. */
+function dealIn(nodes, { from = null, stagger = 45 } = {}) {
+  if (reduced() || !nodes.length) return sleep(0);
+  const origin = from ?? { left: window.innerWidth - 40, top: window.innerHeight - 60 };
+  const last = nodes.map((node, i) => {
+    const to = node.getBoundingClientRect();
+    return node.animate(
+      [
+        {
+          transform: `translate(${origin.left - to.left}px, ${origin.top - to.top}px) rotate(${18 + i * 3}deg) scale(.7)`,
+          opacity: 0,
+        },
+        { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
+      ],
+      { duration: 320, delay: i * stagger, easing: 'cubic-bezier(.2,.9,.3,1.15)', fill: 'backwards' },
+    ).finished.catch(() => {});
+  });
+  return Promise.allSettled(last);
+}
+
+/** Throw cards off the bottom of the screen — used for discards. */
+function tossOut(nodes) {
+  if (reduced() || !nodes.length) return sleep(0);
+  return Promise.allSettled(nodes.map((node, i) => node.animate(
+    [
+      { transform: 'translate(0,0) rotate(0)', opacity: 1 },
+      { transform: `translate(${(i % 2 ? 1 : -1) * (40 + i * 12)}px, 220px) rotate(${(i % 2 ? 1 : -1) * 55}deg)`, opacity: 0 },
+    ],
+    { duration: 320, delay: i * 35, easing: 'cubic-bezier(.5,0,.9,.4)', fill: 'forwards' },
+  ).finished.catch(() => {})));
+}
+
+/** A short, sharp shake — scaled by how big the hit was. */
+function shake(node, strength = 1) {
+  if (reduced() || !node) return;
+  const a = 4 * strength;
+  node.animate(
+    [
+      { transform: 'translate(0,0)' },
+      { transform: `translate(${-a}px, ${a * 0.6}px)` },
+      { transform: `translate(${a}px, ${-a * 0.5}px)` },
+      { transform: `translate(${-a * 0.6}px, 0)` },
+      { transform: 'translate(0,0)' },
+    ],
+    { duration: 220 + 60 * strength, easing: 'ease-out' },
+  );
+}
+
+/** Squash-and-stretch pop, for jokers and cards as they trigger. */
+function pop(node, scale = 1.18) {
+  if (reduced() || !node) return;
+  node.animate(
+    [
+      { transform: 'scale(1,1) translateY(0)' },
+      { transform: `scale(${scale * 0.94}, ${scale}) translateY(-14%)`, offset: 0.35 },
+      { transform: `scale(${1 + (scale - 1) * 0.35}, ${1 - (scale - 1) * 0.25}) translateY(0)`, offset: 0.7 },
+      { transform: 'scale(1,1) translateY(0)' },
+    ],
+    { duration: 380, easing: 'cubic-bezier(.2,1.4,.4,1)' },
+  );
+}
+
+const CONFETTI = ['#ff5d55', '#29a8ff', '#f3b743', '#55d18b', '#b45be0', '#ffffff'];
+
+/** Confetti burst from a point (or the screen centre). */
+function burst(host, { x = window.innerWidth / 2, y = window.innerHeight / 2, count = 34 } = {}) {
+  if (reduced() || !host) return;
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < count; i++) {
+    const bit = document.createElement('i');
+    bit.className = 'confetti';
+    bit.style.left = `${x}px`;
+    bit.style.top = `${y}px`;
+    bit.style.background = CONFETTI[i % CONFETTI.length];
+    if (i % 3 === 0) bit.style.borderRadius = '50%';
+    frag.appendChild(bit);
+
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const dist = 90 + Math.random() * 190;
+    bit.animate(
+      [
+        { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
+        {
+          transform: `translate(calc(-50% + ${Math.cos(angle) * dist}px), calc(-50% + ${Math.sin(angle) * dist + 140}px)) rotate(${Math.random() * 720 - 360}deg) scale(.4)`,
+          opacity: 0,
+        },
+      ],
+      { duration: 900 + Math.random() * 500, easing: 'cubic-bezier(.15,.7,.4,1)', fill: 'forwards' },
+    ).finished.catch(() => {}).then(() => bit.remove());
+  }
+  host.appendChild(frag);
+}
+
+/** Stagger children into view — used for shop tiles and menu rows. */
+function revealChildren(container, { stagger = 40, from = 12 } = {}) {
+  if (reduced() || !container) return;
+  const kids = [...container.children];
+  kids.forEach((kid, i) => {
+    kid.animate(
+      [{ opacity: 0, transform: `translateY(${from}px) scale(.97)` }, { opacity: 1, transform: 'none' }],
+      { duration: 260, delay: i * stagger, easing: 'cubic-bezier(.2,.9,.3,1.1)', fill: 'backwards' },
+    );
+  });
+}
+
+/** Flip a face-down card over. */
+function flipReveal(node) {
+  if (reduced() || !node) return sleep(0);
+  return node.animate(
+    [
+      { transform: 'rotateY(0deg)' },
+      { transform: 'rotateY(90deg)', offset: 0.5 },
+      { transform: 'rotateY(0deg)' },
+    ],
+    { duration: 380, easing: 'ease-in-out' },
+  ).finished.catch(() => {});
+}
+
+return { sleep, settled, flipFrom, dealIn, tossOut, shake, pop, burst, revealChildren, flipReveal };
+});
+
+__def('tutorial.js', function () {
+// Interactive tutorial: a spotlight and a coach bubble that walk a new player
+// through one real round. It never fakes the game — every step waits for the
+// player to actually do the thing, on a live run.
+
+const { el, $ } = __req('util.js');
+
+const SEEN_KEY = 'jokerdeck.tutorial.done';
+
+const hasSeenTutorial = () => {
+  try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
+};
+const markTutorialSeen = () => {
+  try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* private mode */ }
+};
+
+/**
+ * Steps run in order. Each has:
+ *   text    what the coach says
+ *   target  CSS selector to spotlight (optional — omitted means centre screen)
+ *   place   'above' | 'below' — which side of the target the bubble sits
+ *   until   () => boolean, advance automatically once true
+ *   button  label for a manual "next" when there is nothing to wait for
+ *   enter   side effect when the step opens
+ */
+function steps(api) {
+  const G = () => api.game();
+  return [
+    {
+      text: "Welcome. The goal is simple: make poker hands worth enough chips to beat each blind. Let's play one round together.",
+      button: 'Show me',
+    },
+    {
+      text: 'This is the blind you are facing, and the score you have to beat. Tap here to start it.',
+      target: '.sheet footer .btn.green',
+      place: 'above',
+      until: () => G()?.phase === 'playing',
+    },
+    {
+      text: 'Here is your hand. Tap cards to select up to 5 of them — try to pick a pair, or just the two highest cards.',
+      target: '#hand',
+      place: 'above',
+      until: () => (G()?.selected.length ?? 0) >= 2,
+    },
+    {
+      text: 'See the readout? It names your hand and shows its base chips × Mult. Better hands start from much bigger numbers.',
+      target: '#hand-name',
+      place: 'above',
+      button: 'Got it',
+    },
+    {
+      text: 'Now play it. Watch the numbers on the left build up, then get multiplied by the number on the right.',
+      target: '#btn-play',
+      place: 'above',
+      until: () => (G()?.stats.handsPlayed ?? 0) > 0,
+    },
+    {
+      text: 'That score went toward the target at the top. You get a few hands per blind — the bar shows how close you are.',
+      target: '#scoreline',
+      place: 'below',
+      button: 'Next',
+    },
+    {
+      text: "Dealt a bad hand? Select the cards you don't want and Discard them for new ones. It costs a discard, not a hand.",
+      target: '#btn-discard',
+      place: 'above',
+      button: 'Next',
+    },
+    {
+      text: 'Jokers go here, and they are what actually win runs. They fire left to right after your cards score.',
+      target: '#jokers',
+      place: 'below',
+      button: 'Next',
+    },
+    {
+      text: 'Press and hold any card or Joker — at any time — to read exactly what it does. That is the whole rulebook.',
+      target: '#hand',
+      place: 'above',
+      button: 'Next',
+    },
+    {
+      text: 'Beat the blind and you reach the shop, where you buy Jokers, Planet cards that level up a hand forever, and booster packs. That is the loop. Good luck.',
+      button: 'Play',
+      last: true,
+    },
+  ];
+}
+
+function startTutorial(api) {
+  const list = steps(api);
+  let i = 0;
+  let poll = null;
+
+  const layer = el('div.tut-layer', { 'aria-live': 'polite' });
+  const hole = el('div.tut-hole');
+  const bubble = el('div.tut-bubble');
+  layer.append(hole, bubble);
+  document.body.appendChild(layer);
+
+  const cleanup = () => {
+    clearInterval(poll);
+    layer.remove();
+    markTutorialSeen();
+    api.onDone?.();
+  };
+
+  const position = (step) => {
+    const node = step.target ? $(step.target) : null;
+    if (!node) {
+      hole.style.opacity = '0';
+      bubble.style.left = '50%';
+      bubble.style.top = '50%';
+      bubble.style.transform = 'translate(-50%, -50%)';
+      return;
+    }
+    const r = node.getBoundingClientRect();
+    const pad = 8;
+    hole.style.opacity = '1';
+    hole.style.left = `${r.left - pad}px`;
+    hole.style.top = `${r.top - pad}px`;
+    hole.style.width = `${r.width + pad * 2}px`;
+    hole.style.height = `${r.height + pad * 2}px`;
+
+    bubble.style.transform = 'none';
+    const bw = Math.min(320, window.innerWidth - 24);
+    bubble.style.width = `${bw}px`;
+    let left = r.left + r.width / 2 - bw / 2;
+    left = Math.max(12, Math.min(left, window.innerWidth - bw - 12));
+    bubble.style.left = `${left}px`;
+
+    // Measure after width is applied so the height is real.
+    const bh = bubble.offsetHeight;
+    let top = step.place === 'below' ? r.bottom + 14 : r.top - bh - 14;
+    if (top < 12) top = r.bottom + 14;
+    if (top + bh > window.innerHeight - 12) top = Math.max(12, r.top - bh - 14);
+    bubble.style.top = `${top}px`;
+  };
+
+  const render = () => {
+    const step = list[i];
+    if (!step) return cleanup();
+
+    step.enter?.();
+    bubble.replaceChildren(
+      el('div.tut-count', { text: `${i + 1} / ${list.length}` }),
+      el('p.tut-text', { text: step.text }),
+      el('div.tut-actions', {}, [
+        step.button
+          ? el('button.btn.tiny.tut-next', { text: step.button, onclick: () => advance() })
+          : el('span.tut-hint', { text: 'Go ahead — I will wait.' }),
+        el('button.tut-skip', { text: 'Skip', onclick: cleanup }),
+      ]),
+    );
+
+    // Two frames: one for layout, one for the measured reposition.
+    requestAnimationFrame(() => { position(step); requestAnimationFrame(() => position(step)); });
+
+    clearInterval(poll);
+    if (step.until) {
+      poll = setInterval(() => {
+        if (step.until()) advance();
+        else position(step);
+      }, 220);
+    } else {
+      poll = setInterval(() => position(step), 400);
+    }
+  };
+
+  const advance = () => {
+    clearInterval(poll);
+    i += 1;
+    if (i >= list.length) return cleanup();
+    render();
+  };
+
+  window.addEventListener('resize', () => position(list[i]));
+  render();
+  return { stop: cleanup };
+}
+
+return { hasSeenTutorial, markTutorialSeen, startTutorial };
+});
+
 __def('ui.js', function () {
 // Rendering and input. Owns the DOM; game.js owns the rules.
 
@@ -3849,6 +4492,9 @@ const { DECKS, DECK_BY_KEY } = __req('decks.js');
 const Game = __req('game.js');
 const Save = __req('save.js');
 const { sfx, buzz, unlock, setEnabled, setHaptics } = __req('audio.js');
+const { jokerFace, consumableArt, packArt, cardBack } = __req('art.js');
+const Anim = __req('anim.js');
+const { startTutorial, hasSeenTutorial, markTutorialSeen } = __req('tutorial.js');
 
 // --------------------------------------------------------------- element refs
 
@@ -3865,6 +4511,8 @@ let G = null;
 let settings = Save.defaultSettings;
 let busy = false;          // true while a scoring animation is running
 let screen = 'menu';       // 'menu' | 'game'
+let shownCardIds = new Set();   // cards already dealt, so only new ones fly in
+let tutorial = null;
 
 // -------------------------------------------------------------------- boot --
 
@@ -3891,6 +4539,11 @@ function installTestHooks() {
     seed: () => G?.seed ?? null,
     state: () => G,
     giveMoney: (n) => { if (G) { G.money += n; render(); } },
+    giveJokers: (keys) => {
+      if (!G) return;
+      G.jokers = keys.map((k) => Game.makeTestJoker(k));
+      render();
+    },
     forceWin: () => {
       if (!G || G.phase !== 'playing') return false;
       G.target = 1;
@@ -3928,6 +4581,7 @@ function cardEl(card, opts = {}) {
   });
   if (card.faceDown && !opts.reveal) {
     node.classList.add('facedown');
+    node.innerHTML = cardBack();
     return node;
   }
   if (!stone) {
@@ -3942,13 +4596,6 @@ function cardEl(card, opts = {}) {
   return node;
 }
 
-const JOKER_ART = ['🃏', '🎩', '🎭', '🎪', '🪄', '🔮', '💎', '🧿', '🎲', '⭐'];
-function artFor(key) {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return JOKER_ART[h % JOKER_ART.length];
-}
-
 function jokerEl(j, opts = {}) {
   const def = JOKER_BY_KEY[j.key];
   const node = el('div.joker', {
@@ -3957,19 +4604,17 @@ function jokerEl(j, opts = {}) {
     'data-ed': j.edition || null,
   }, [
     el('div.jname', { text: def.name }),
-    el('div.jart', { text: artFor(j.key) }),
+    el('div.jart', { html: jokerFace(j.key, RARITY[def.rarity].color) }),
   ]);
   if (opts.disabled) node.classList.add('off');
   return node;
 }
 
-const CONSUMABLE_ICON = { tarot: '🔯', planet: '🪐', spectral: '👻' };
-
 function consumableEl(item) {
   const def = CONSUMABLE_BY_KEY[item.key];
   return el('div.consumable', { 'data-id': item.id, 'data-type': def.type }, [
-    el('div.cicon', { text: CONSUMABLE_ICON[def.type] }),
-    el('div', { text: def.name }),
+    el('div.cicon', { html: consumableArt(def.type) }),
+    el('div.cname', { text: def.name }),
   ]);
 }
 
@@ -4034,6 +4679,7 @@ function renderTrays() {
 }
 
 function renderHand() {
+  const fresh = [];
   dom.hand.replaceChildren();
   for (const c of G.hand) {
     const node = cardEl(c);
@@ -4049,9 +4695,18 @@ function renderHand() {
       renderHandName();
     });
     dom.hand.appendChild(node);
+    if (!shownCardIds.has(c.id)) fresh.push(node);
   }
+  shownCardIds = new Set(G.hand.map((c) => c.id));
   layoutHand();
   renderHandName();
+
+  // Only cards that were not on screen a moment ago get the dealing arc.
+  if (fresh.length && G.phase === 'playing') {
+    const deck = dom.deckCount.getBoundingClientRect();
+    Anim.dealIn(fresh, { from: { left: deck.left, top: deck.top }, stagger: 40 });
+    sfx.deal();
+  }
 }
 
 /**
@@ -4180,22 +4835,42 @@ async function onPlay() {
   hideTip();
   dom.btnPlay.disabled = dom.btnDiscard.disabled = true;
 
+  // Capture where each card sits in the hand so it can fly to the table.
+  const origins = new Map();
+  for (const c of Game.selectedCards(G)) {
+    const node = document.querySelector(`#hand [data-id="${c.id}"]`);
+    if (node) { origins.set(c.id, node.getBoundingClientRect()); node.classList.add('flew'); }
+  }
+
   const result = Game.scoreSelected(G);
-  await animateScore(result);
+  await animateScore(result, origins);
   Game.commitHand(G, result);
 
   busy = false;
   render();
 
-  if (G.phase === 'round_end') { sfx.win(); banner('Blind Defeated!', 'var(--good)'); }
+  if (G.phase === 'round_end') {
+    sfx.win();
+    banner('Blind Defeated!', 'var(--good)');
+    Anim.burst(dom.fx, { y: window.innerHeight * 0.42, count: 60 });
+  }
   else if (G.phase === 'game_over') { sfx.lose(); Save.recordRun(G, false); }
 }
 
-function onDiscard() {
+async function onDiscard() {
   const why = Game.discardBlocker(G);
   if (why) return toast(why, true);
   sfx.discard();
   buzz(12);
+
+  const doomed = Game.selectedCards(G)
+    .map((c) => document.querySelector(`#hand [data-id="${c.id}"]`))
+    .filter(Boolean);
+  busy = true;
+  await Anim.tossOut(doomed);
+  for (const c of Game.selectedCards(G)) shownCardIds.delete(c.id);
+  busy = false;
+
   Game.discardSelected(G);
   render();
 }
@@ -4213,16 +4888,25 @@ function useConsumable(u) {
 
 // --------------------------------------------------------------- animation --
 
-async function animateScore(result) {
+async function animateScore(result, origins = new Map()) {
   const fast = settings.fastScoring;
   const beat = fast ? 55 : 130;
   dom.calc.hidden = false;
 
-  // Move the played cards into the play area before the maths starts.
+  // Move the played cards onto the table, flying each one out of the hand.
   dom.played.replaceChildren();
-  for (const c of result.played) dom.played.appendChild(cardEl(c, { reveal: true }));
+  const laid = result.played.map((c) => {
+    const node = cardEl(c, { reveal: true });
+    dom.played.appendChild(node);
+    return node;
+  });
+  await Promise.all(laid.map((node, i) => {
+    const from = origins.get(result.played[i].id);
+    return from ? Anim.flipFrom(node, from, { duration: 300, delay: i * 55, spin: 8 }) : null;
+  }).filter(Boolean));
+
   setCalc(0, 0);
-  await sleep(fast ? 60 : 180);
+  await sleep(fast ? 40 : 120);
 
   let step = 0;
   for (const e of result.events) {
@@ -4231,13 +4915,12 @@ async function animateScore(result) {
     if (e.kind === 'base') { sfx.chip(0); await sleep(beat); continue; }
 
     const node = e.refId ? findRef(e.refId) : null;
-    if (node) {
-      node.classList.add(node.classList.contains('joker') ? 'trigger' : 'scoring');
-      setTimeout(() => node.classList.remove('trigger', 'scoring'), 420);
-    }
+    if (node) Anim.pop(node, node.classList.contains('joker') ? 1.22 : 1.16);
 
     for (const f of floatsFor(e)) spawnFloat(node, f.text, f.cls);
     playBeat(e, step++);
+    // A multiplier landing deserves a thump.
+    if (e.d?.xmult && e.d.xmult > 1) Anim.shake(dom.app, Math.min(2, e.d.xmult / 2));
     await sleep(beat);
   }
 
@@ -4252,12 +4935,20 @@ async function animateScore(result) {
   // Slam the total into the score readout.
   const before = G.score;
   const after = before + result.total;
+  Anim.shake(dom.app, clamp(result.total / Math.max(1, G.target) * 3, 0.6, 3));
   await countUp(before, after, fast ? 220 : 460);
   dom.scoreValue.classList.add('pop');
   setTimeout(() => dom.scoreValue.classList.remove('pop'), 280);
   dom.scoreFill.style.width = `${clamp((after / Math.max(1, G.target)) * 100, 0, 100)}%`;
+
+  // Clearing the bar is worth confetti.
+  if (after >= G.target) {
+    const bar = dom.scoreFill.getBoundingClientRect();
+    Anim.burst(dom.fx, { x: window.innerWidth / 2, y: bar.bottom, count: 40 });
+  }
   await sleep(fast ? 100 : 260);
   dom.calc.hidden = true;
+  for (const c of result.played) shownCardIds.delete(c.id);
 }
 
 function floatsFor(e) {
@@ -4336,6 +5027,12 @@ function toast(msg, bad = false) {
 function openSheet(node) {
   dom.overlay.replaceChildren(node);
   dom.overlay.hidden = false;
+  // Let the grids inside cascade in rather than appearing all at once.
+  requestAnimationFrame(() => {
+    for (const grid of node.querySelectorAll('.shop-grid, .blind-grid, .choice-list')) {
+      Anim.revealChildren(grid, { stagger: 45 });
+    }
+  });
 }
 function closeSheet() {
   dom.overlay.hidden = true;
@@ -4521,7 +5218,7 @@ function shopSheet() {
     const price = Game.itemPrice(G, p);
     packGrid.appendChild(el('div.shop-item', {}, [
       el('div.pack-tile', { 'data-kind': def.kind }, [
-        el('div', { text: { tarot: '🔯', planet: '🪐', card: '🂠', joker: '🃏', spectral: '👻' }[def.kind], style: { fontSize: '26px' } }),
+        el('div.pack-art', { html: packArt(def.kind) }),
         el('div', { text: def.name }),
         el('div', { text: `Pick ${def.choose} of ${def.size}`, style: { fontWeight: '600', fontSize: '10px' } }),
       ]),
@@ -4754,6 +5451,7 @@ function showNewRun() {
         screen = 'game';
         Save.saveRun(G);
         render();
+        if (!hasSeenTutorial()) offerTutorial();
       },
     })],
   }));
@@ -4900,6 +5598,61 @@ function showSettings() {
   }));
 }
 
+/** Ask once, on the very first run, whether to be walked through it. */
+function offerTutorial() {
+  openSheet(sheet({
+    title: 'First time?',
+    body: [
+      el('div.center', { style: { padding: '14px 0 6px' } }, [
+        el('div.tut-mascot', { html: jokerFace('tutorial-guide', '#f3b743') }),
+        el('p', { text: 'I can walk you through one round — about 60 seconds. You play it for real; I just point at things.', style: { fontSize: '14px', lineHeight: '1.5' } }),
+      ]),
+    ],
+    footer: [
+      el('button.btn.ghost', {
+        text: 'No thanks',
+        onclick: () => { markTutorialSeen(); sfx.tap(); render(); },
+      }),
+      el('button.btn.green', { text: 'Walk me through it', onclick: () => { sfx.tap(); runTutorial(); } }),
+    ],
+  }));
+}
+
+function runTutorial() {
+  closeSheet();
+  render();
+  tutorial?.stop?.();
+  tutorial = startTutorial({
+    game: () => G,
+    onDone: () => { tutorial = null; render(); },
+  });
+}
+
+/** A static worked example, so the maths is legible without playing. */
+function scoringExample() {
+  const demo = [
+    { rank: 13, suit: 'H' }, { rank: 13, suit: 'S' }, { rank: 9, suit: 'D' },
+  ].map((c) => ({ ...c, id: `demo${c.rank}${c.suit}`, enhancement: null, edition: null, seal: null, debuffed: false }));
+
+  const row = el('div.card-row', { style: { minHeight: 'auto', gap: '4px' } },
+    demo.map((c) => cardEl(c, { reveal: true })));
+
+  const line = (label, value, cls) =>
+    el('div.ex-line', {}, [el('span', { text: label }), el('span', { class: cls ?? '', text: value })]);
+
+  return el('div.example', {}, [
+    row,
+    el('div.ex-body', {}, [
+      line('Pair of Kings — base', '10 chips × 2 Mult'),
+      line('K adds 10 chips', '20 chips × 2 Mult', 'c-chips'),
+      line('K adds 10 chips', '30 chips × 2 Mult', 'c-chips'),
+      line('The 9 is not part of the pair', 'it scores nothing', 'muted'),
+      line('A Joker adding +4 Mult', '30 chips × 6 Mult', 'c-mult'),
+      el('div.ex-total', {}, [el('span', { text: 'Final score' }), el('span', { text: '30 × 6 = 180' })]),
+    ]),
+  ]);
+}
+
 function showHelp() {
   const p = (html) => el('p', { html, style: { margin: '6px 0', fontSize: '13.5px', lineHeight: '1.45' } });
   openSheet(sheet({
@@ -4908,9 +5661,11 @@ function showHelp() {
     body: [
       el('h3', { text: 'The loop' }),
       p('Each <b>Ante</b> has three blinds: Small, Big and a <b>Boss</b>. Beat a blind\'s chip target before you run out of hands, then spend your winnings in the shop and do it again. Survive Ante 8 to win.'),
-      el('h3', { text: 'Scoring' }),
+      el('h3', { text: 'Scoring, step by step' }),
       p('Select up to 5 cards and press <b>Play Hand</b>. The poker hand you make sets a base <span class="c-chips">chips</span> and <span class="c-mult">Mult</span> value. Every scoring card adds its own chips. Then your Jokers fire, left to right. Final score is <span class="c-chips">chips</span> × <span class="c-mult">Mult</span>.'),
-      p('Order matters: a Joker that adds Mult is worth less if it fires before one that multiplies. Drag is not needed — sell and rebuy to reorder, or plan your purchases.'),
+      scoringExample(),
+      p('Only cards that are <b>part of the hand</b> score. Playing a pair plus three junk cards scores exactly the same as playing the pair alone — so the junk is better discarded.'),
+      p('Order matters: a Joker that adds Mult is worth less if it fires before one that multiplies. Sell and rebuy to reorder them.'),
       el('h3', { text: 'Discards' }),
       p('Select cards and press <b>Discard</b> to throw them away and draw replacements. Discards do not cost you a hand, but you only get a few per round.'),
       el('h3', { text: 'Jokers' }),
@@ -4922,7 +5677,11 @@ function showHelp() {
       el('h3', { text: 'Money' }),
       p('You earn interest of $1 per $5 held at the end of each round, up to a cap. Hoarding early pays for the Jokers that win late.'),
     ],
-    footer: [el('button.btn.ghost.wide', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } })],
+    footer: [
+      // The guided walkthrough needs a live run to point at.
+      G ? el('button.btn.green', { text: 'Walk me through it', onclick: () => { sfx.tap(); runTutorial(); } }) : null,
+      el('button.btn.ghost', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } }),
+    ].filter(Boolean),
   }));
 }
 

@@ -1,6 +1,7 @@
 // Headless assertions for the rules engine. Run with `npm test`.
 
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 import { makeCard, standardDeck, baseChips } from '../js/cards.js';
 import { evaluate, contains, handStats, freshHandLevels } from '../js/poker.js';
@@ -684,6 +685,30 @@ test('joker order rewards putting multipliers last', () => {
   };
   assert.ok(mk(['droll', 'tribe']) > mk(['tribe', 'droll']),
     'adding Mult before multiplying it must score higher');
+});
+
+// ------------------------------------------------------- deployment sanity --
+
+test('the service worker precaches every shipped module', () => {
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const modules = readdirSync(new URL('../js/', import.meta.url)).filter((f) => f.endsWith('.js'));
+  const missing = modules.filter((m) => !sw.includes(`js/${m}`));
+  assert.equal(missing.length, 0,
+    `sw.js would 404 offline for: ${missing.join(', ')}`);
+});
+
+test('the single-file bundler knows about every module', () => {
+  const bundler = readFileSync(new URL('../tools/bundle.mjs', import.meta.url), 'utf8');
+  const modules = readdirSync(new URL('../js/', import.meta.url)).filter((f) => f.endsWith('.js'));
+  const missing = modules.filter((m) => !bundler.includes(`'${m}'`));
+  assert.equal(missing.length, 0, `bundle.mjs omits: ${missing.join(', ')}`);
+});
+
+test('index.html references only files that exist', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const refs = [...html.matchAll(/(?:href|src)="([^"#:]+)"/g)].map((m) => m[1]);
+  const missing = refs.filter((r) => !existsSync(new URL(`../${r}`, import.meta.url)));
+  assert.equal(missing.length, 0, `index.html points at missing: ${missing.join(', ')}`);
 });
 
 // ------------------------------------------------------------------- report --

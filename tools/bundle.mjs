@@ -18,10 +18,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(resolve(ROOT, p), 'utf8');
 const b64 = (p) => readFileSync(resolve(ROOT, p)).toString('base64');
 
+// Every module in js/ must appear here — selftest.mjs enforces it, because a
+// missing entry only fails at runtime with "missing module".
 const MODULES = [
   'util.js', 'cards.js', 'poker.js', 'jokers.js', 'consumables.js',
   'blinds.js', 'decks.js', 'shop.js', 'game.js', 'audio.js', 'save.js',
-  'ui.js', 'main.js',
+  'art.js', 'anim.js', 'tutorial.js', 'ui.js', 'main.js',
 ];
 
 /** Rewrite one ES module into a registry factory body. */

@@ -106,6 +106,19 @@ plan around it.
 
 Press and hold **any** card or Joker to read exactly what it does.
 
+### Learning it
+
+Your first run offers a **guided walkthrough** — a spotlight and a coach bubble
+that talk you through one real round while you play it. You can start it any
+time from **How to Play**, which also carries a worked scoring example showing
+exactly how a pair of Kings turns into 180 points.
+
+### The art
+
+Every joker's face is generated from its own key — hat, eyes, mouth and palette
+are all picked deterministically, so the same joker always looks the same and
+no image files ship at all. See `js/art.js`.
+
 ### What's in it
 
 | | |
@@ -146,6 +159,9 @@ js/
   shop.js               shop stock, packs, vouchers
   decks.js              starting decks
   save.js               localStorage persistence
+  art.js                procedural cartoon SVG — joker faces, card backs
+  anim.js               FLIP flights, confetti, screen shake, staggered reveals
+  tutorial.js           the guided walkthrough (spotlight + coach bubble)
   audio.js              WebAudio sound effects (no asset files)
   util.js               seeded RNG, formatting, DOM helper
 tools/                  tests and generators (not deployed)
@@ -160,7 +176,7 @@ ever changing.
 ### Tests
 
 ```bash
-npm test                       # 61 rules-engine assertions
+npm test                       # 64 assertions: rules, data sanity, deploy drift
 node tools/simulate.mjs 400    # fuzz: bots 400 full runs, fails on crash/NaN
 node tools/balance.mjs 150     # difficulty probe with a greedy bot
 npm i -D playwright
@@ -169,7 +185,9 @@ node tools/uitest.mjs --shots  # browser smoke test at 3 viewports (needs npm st
 
 `selftest.mjs` sweeps **every** joker through a full round, **every** consumable
 through an apply, and **every** boss through a playable round, asserting no
-crashes and no NaN. `simulate.mjs` catches the state-machine bugs that unit
+crashes and no NaN. It also guards deployment drift: a new module that is not
+precached by `sw.js` or listed in `bundle.mjs` fails the suite rather than
+breaking offline play or the single-file build at runtime. `simulate.mjs` catches the state-machine bugs that unit
 tests miss. `uitest.mjs` drives the real UI in Chromium at 390×844, 844×390 and
 320×568, and fails on any console error or layout overflow.
 

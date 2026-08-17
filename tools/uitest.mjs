@@ -22,6 +22,20 @@ const SHOT_DIR = 'tools/screenshots';
 const problems = [];
 const steps = [];
 
+/** Wait for every running animation to finish — getBoundingClientRect() sees
+ *  in-flight transforms, so measuring early reports cards mid-deal. */
+const settle = (page, cap = 3000) => page.evaluate(async (ms) => {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    const running = document.getAnimations().filter((a) => a.playState === 'running');
+    if (!running.length) return;
+    await Promise.race([
+      Promise.allSettled(running.map((a) => a.finished)),
+      new Promise((r) => setTimeout(r, 150)),
+    ]);
+  }
+}, cap);
+
 async function main() {
   if (SHOTS) mkdirSync(SHOT_DIR, { recursive: true });
 
@@ -66,9 +80,16 @@ async function main() {
   await shot('02-newrun');
 
   await page.click('.sheet button:has-text("Start Run")');
+
+  // A first-ever run offers the guided walkthrough before anything else.
+  await page.waitForSelector('text=First time?', { timeout: 5000 });
+  step('tutorial is offered on a first run', true);
+  await shot('03-tutorial-offer');
+  await page.click('.sheet footer button:has-text("No thanks")');
+
   await page.waitForSelector('.blind-grid');
   step('blind select renders', (await page.locator('.blind-card').count()) === 3);
-  await shot('03-blindselect');
+  await shot('04-blindselect');
 
   // ------------------------------------------------------------ playing ----
   await page.click('.sheet button:has-text("Play Small Blind")');
@@ -76,7 +97,15 @@ async function main() {
   const dealt = await page.locator('#hand .card').count();
   step('a full hand is dealt', dealt === 8, `${dealt} cards`);
 
-  // The hand must not overflow the screen.
+  // Cards arrive on an animated arc from the deck corner.
+  const dealing = await page.evaluate(() =>
+    document.querySelectorAll('#hand .card').length > 0
+    && document.getAnimations().some((a) => a.playState === 'running'));
+  step('cards animate in when dealt', dealing);
+
+  await settle(page);
+
+  // The hand must not overflow the screen, measured once everything has landed.
   const fit = await page.evaluate(() => {
     const row = document.getElementById('hand');
     const r = row.getBoundingClientRect();
@@ -97,7 +126,7 @@ async function main() {
     document.documentElement.scrollWidth <= window.innerWidth + 1);
   step('page does not scroll horizontally', noHScroll);
 
-  await shot('04-playing');
+  await shot('05-playing');
 
   // Select cards and confirm the live hand readout updates.
   await page.locator('#hand .card').nth(0).click();
@@ -106,7 +135,7 @@ async function main() {
   step('tapping selects cards', selCount === 2, `${selCount} selected`);
   const handName = await page.textContent('#hand-name');
   step('hand name preview shows', handName.trim().length > 0, handName.trim());
-  await shot('05-selected');
+  await shot('06-selected');
 
   // ---------------------------------------------------------- scoring -------
   const scoreBefore = await page.textContent('#score-value');
@@ -119,7 +148,7 @@ async function main() {
   const scoreAfter = await page.textContent('#score-value');
   step('playing a hand scores', scoreAfter !== scoreBefore, `${scoreBefore} -> ${scoreAfter}`);
   step('score is a real number', /^[\d,]+$/.test(scoreAfter.trim()), scoreAfter);
-  await shot('06-scored');
+  await shot('07-scored');
 
   // ---------------------------------------------------------- discard -------
   const discardsBefore = await page.textContent('#hud-discards');
@@ -145,7 +174,7 @@ async function main() {
   await page.waitForSelector('text=Poker hands', { timeout: 5000 });
   const handRows = await page.locator('.table tbody tr').count();
   step('run info lists every poker hand', handRows >= 12, `${handRows} rows`);
-  await shot('11-runinfo');
+  await shot('12-runinfo');
   await page.click('.sheet footer button:has-text("Back")');
   await page.waitForSelector('#overlay', { state: 'hidden', timeout: 5000 });
   step('closing run info returns to the board', true);
@@ -154,7 +183,7 @@ async function main() {
   await page.click('#btn-menu');
   await page.waitForSelector('text=Abandon Run', { timeout: 5000 });
   step('pause menu opens', true);
-  await shot('12-pause');
+  await shot('13-pause');
   await page.click('.sheet footer button:has-text("Resume")');
   await page.waitForSelector('#overlay', { state: 'hidden', timeout: 5000 });
 
@@ -167,21 +196,58 @@ async function main() {
   await page.mouse.up();
   const tipVisible = await page.locator('#tip:not([hidden])').count();
   step('long-press opens the card tooltip', tipVisible === 1);
-  await shot('07-tooltip');
+  await shot('08-tooltip');
   await page.mouse.click(200, 60);
+
+  // ------------------------------------------------------------ cartoon art --
+  await page.evaluate(() => window.__test.giveJokers(['jester', 'tribe', 'blueprint']));
+  await page.waitForTimeout(300);
+  const faces = await page.locator('#jokers .joker .jart svg').count();
+  step('jokers render cartoon SVG faces', faces === 3, `${faces} portraits`);
+  const distinct = await page.evaluate(() =>
+    new Set([...document.querySelectorAll('#jokers .joker .jart svg')].map((s) => s.innerHTML)).size);
+  step('each joker gets a different face', distinct === 3, `${distinct} unique`);
+  await shot('08b-jokers');
+
+  // ------------------------------------------------------------- tutorial ----
+  await page.click('#btn-menu');
+  await page.waitForSelector('text=How to Play', { timeout: 5000 });
+  await page.click('.sheet button:has-text("How to Play")');
+  await page.waitForSelector('.example', { timeout: 5000 });
+  step('how-to-play shows a worked scoring example', true);
+  await shot('08c-howtoplay');
+
+  await page.click('.sheet footer button:has-text("Walk me through it")');
+  await page.waitForSelector('.tut-bubble', { timeout: 5000 });
+  step('tutorial launches with a coach bubble', true);
+  await page.click('.tut-bubble .tut-next');
+  await page.waitForTimeout(500);
+  const spotlit = await page.evaluate(() => {
+    const h = document.querySelector('.tut-hole');
+    if (!h) return null;
+    const r = h.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), op: getComputedStyle(h).opacity };
+  });
+  step('spotlight targets a real element',
+    !!spotlit && spotlit.w > 10 && spotlit.h > 10 && spotlit.op === '1',
+    spotlit ? `${spotlit.w}x${spotlit.h}` : 'missing');
+  await shot('08d-tutorial');
+  await page.click('.tut-bubble .tut-skip');
+  await page.waitForTimeout(300);
+  step('tutorial can be skipped', (await page.locator('.tut-layer').count()) === 0);
 
   // ------------------------------------------------------- win the blind ----
   // Force a win through the exposed module so we can reach the shop.
   await page.evaluate(() => window.__test.forceWin());
   await page.waitForSelector('text=Cash Out', { timeout: 5000 });
   step('cash-out screen appears', true);
-  await shot('08-cashout');
+  await shot('09-cashout');
 
   await page.click('.sheet footer button:has-text("Cash Out")');
   await page.waitForSelector('text=For sale', { timeout: 5000 });
   const shopItems = await page.locator('.shop-item').count();
   step('shop renders with stock', shopItems >= 2, `${shopItems} tiles`);
-  await shot('09-shop');
+  await shot('10-shop');
 
   // Buying should not throw even when broke.
   const buyBtn = page.locator('.shop-item button:has-text("Buy")').first();
@@ -196,7 +262,7 @@ async function main() {
     await page.waitForTimeout(400);
     const opts = await page.locator('.shop-item').count();
     step('booster pack opens with choices', opts >= 2, `${opts} options`);
-    await shot('10-pack');
+    await shot('11-pack');
     const take = page.locator('button:has-text("Take")').first();
     if (await take.count()) await take.click();
     await page.waitForTimeout(300);
@@ -220,19 +286,21 @@ async function main() {
   // ---------------------------------------------------------- landscape ----
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(300);
+  await settle(page);
   const landscapeOk = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1
     && document.documentElement.scrollHeight <= window.innerHeight + 1);
   step('landscape does not overflow', landscapeOk);
-  await shot('13-landscape');
+  await shot('14-landscape');
 
   // ---------------------------------------------------------- small phone ---
   await page.setViewportSize({ width: 320, height: 568 });   // iPhone SE 1st gen
   await page.waitForTimeout(300);
+  await settle(page);
   const smallOk = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1);
   step('320px-wide phone does not overflow', smallOk);
-  await shot('14-small');
+  await shot('15-small');
 
   await browser.close();
 }

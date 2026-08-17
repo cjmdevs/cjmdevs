@@ -1,6 +1,6 @@
 // Cache-first service worker. Bump CACHE when shipping new assets.
 
-const CACHE = 'jokerdeck-v1';
+const CACHE = 'jokerdeck-v2';
 
 const ASSETS = [
   './',
@@ -20,6 +20,9 @@ const ASSETS = [
   'js/save.js',
   'js/audio.js',
   'js/util.js',
+  'js/art.js',
+  'js/anim.js',
+  'js/tutorial.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-180.png',

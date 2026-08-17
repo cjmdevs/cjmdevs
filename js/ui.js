@@ -11,6 +11,9 @@ import { DECKS, DECK_BY_KEY } from './decks.js';
 import * as Game from './game.js';
 import * as Save from './save.js';
 import { sfx, buzz, unlock, setEnabled, setHaptics } from './audio.js';
+import { jokerFace, consumableArt, packArt, cardBack } from './art.js';
+import * as Anim from './anim.js';
+import { startTutorial, hasSeenTutorial, markTutorialSeen } from './tutorial.js';
 
 // --------------------------------------------------------------- element refs
 
@@ -27,6 +30,8 @@ let G = null;
 let settings = Save.defaultSettings;
 let busy = false;          // true while a scoring animation is running
 let screen = 'menu';       // 'menu' | 'game'
+let shownCardIds = new Set();   // cards already dealt, so only new ones fly in
+let tutorial = null;
 
 // -------------------------------------------------------------------- boot --
 
@@ -53,6 +58,11 @@ function installTestHooks() {
     seed: () => G?.seed ?? null,
     state: () => G,
     giveMoney: (n) => { if (G) { G.money += n; render(); } },
+    giveJokers: (keys) => {
+      if (!G) return;
+      G.jokers = keys.map((k) => Game.makeTestJoker(k));
+      render();
+    },
     forceWin: () => {
       if (!G || G.phase !== 'playing') return false;
       G.target = 1;
@@ -90,6 +100,7 @@ function cardEl(card, opts = {}) {
   });
   if (card.faceDown && !opts.reveal) {
     node.classList.add('facedown');
+    node.innerHTML = cardBack();
     return node;
   }
   if (!stone) {
@@ -104,13 +115,6 @@ function cardEl(card, opts = {}) {
   return node;
 }
 
-const JOKER_ART = ['🃏', '🎩', '🎭', '🎪', '🪄', '🔮', '💎', '🧿', '🎲', '⭐'];
-function artFor(key) {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return JOKER_ART[h % JOKER_ART.length];
-}
-
 function jokerEl(j, opts = {}) {
   const def = JOKER_BY_KEY[j.key];
   const node = el('div.joker', {
@@ -119,19 +123,17 @@ function jokerEl(j, opts = {}) {
     'data-ed': j.edition || null,
   }, [
     el('div.jname', { text: def.name }),
-    el('div.jart', { text: artFor(j.key) }),
+    el('div.jart', { html: jokerFace(j.key, RARITY[def.rarity].color) }),
   ]);
   if (opts.disabled) node.classList.add('off');
   return node;
 }
 
-const CONSUMABLE_ICON = { tarot: '🔯', planet: '🪐', spectral: '👻' };
-
 function consumableEl(item) {
   const def = CONSUMABLE_BY_KEY[item.key];
   return el('div.consumable', { 'data-id': item.id, 'data-type': def.type }, [
-    el('div.cicon', { text: CONSUMABLE_ICON[def.type] }),
-    el('div', { text: def.name }),
+    el('div.cicon', { html: consumableArt(def.type) }),
+    el('div.cname', { text: def.name }),
   ]);
 }
 
@@ -196,6 +198,7 @@ function renderTrays() {
 }
 
 function renderHand() {
+  const fresh = [];
   dom.hand.replaceChildren();
   for (const c of G.hand) {
     const node = cardEl(c);
@@ -211,9 +214,18 @@ function renderHand() {
       renderHandName();
     });
     dom.hand.appendChild(node);
+    if (!shownCardIds.has(c.id)) fresh.push(node);
   }
+  shownCardIds = new Set(G.hand.map((c) => c.id));
   layoutHand();
   renderHandName();
+
+  // Only cards that were not on screen a moment ago get the dealing arc.
+  if (fresh.length && G.phase === 'playing') {
+    const deck = dom.deckCount.getBoundingClientRect();
+    Anim.dealIn(fresh, { from: { left: deck.left, top: deck.top }, stagger: 40 });
+    sfx.deal();
+  }
 }
 
 /**
@@ -342,22 +354,42 @@ async function onPlay() {
   hideTip();
   dom.btnPlay.disabled = dom.btnDiscard.disabled = true;
 
+  // Capture where each card sits in the hand so it can fly to the table.
+  const origins = new Map();
+  for (const c of Game.selectedCards(G)) {
+    const node = document.querySelector(`#hand [data-id="${c.id}"]`);
+    if (node) { origins.set(c.id, node.getBoundingClientRect()); node.classList.add('flew'); }
+  }
+
   const result = Game.scoreSelected(G);
-  await animateScore(result);
+  await animateScore(result, origins);
   Game.commitHand(G, result);
 
   busy = false;
   render();
 
-  if (G.phase === 'round_end') { sfx.win(); banner('Blind Defeated!', 'var(--good)'); }
+  if (G.phase === 'round_end') {
+    sfx.win();
+    banner('Blind Defeated!', 'var(--good)');
+    Anim.burst(dom.fx, { y: window.innerHeight * 0.42, count: 60 });
+  }
   else if (G.phase === 'game_over') { sfx.lose(); Save.recordRun(G, false); }
 }
 
-function onDiscard() {
+async function onDiscard() {
   const why = Game.discardBlocker(G);
   if (why) return toast(why, true);
   sfx.discard();
   buzz(12);
+
+  const doomed = Game.selectedCards(G)
+    .map((c) => document.querySelector(`#hand [data-id="${c.id}"]`))
+    .filter(Boolean);
+  busy = true;
+  await Anim.tossOut(doomed);
+  for (const c of Game.selectedCards(G)) shownCardIds.delete(c.id);
+  busy = false;
+
   Game.discardSelected(G);
   render();
 }
@@ -375,16 +407,25 @@ function useConsumable(u) {
 
 // --------------------------------------------------------------- animation --
 
-async function animateScore(result) {
+async function animateScore(result, origins = new Map()) {
   const fast = settings.fastScoring;
   const beat = fast ? 55 : 130;
   dom.calc.hidden = false;
 
-  // Move the played cards into the play area before the maths starts.
+  // Move the played cards onto the table, flying each one out of the hand.
   dom.played.replaceChildren();
-  for (const c of result.played) dom.played.appendChild(cardEl(c, { reveal: true }));
+  const laid = result.played.map((c) => {
+    const node = cardEl(c, { reveal: true });
+    dom.played.appendChild(node);
+    return node;
+  });
+  await Promise.all(laid.map((node, i) => {
+    const from = origins.get(result.played[i].id);
+    return from ? Anim.flipFrom(node, from, { duration: 300, delay: i * 55, spin: 8 }) : null;
+  }).filter(Boolean));
+
   setCalc(0, 0);
-  await sleep(fast ? 60 : 180);
+  await sleep(fast ? 40 : 120);
 
   let step = 0;
   for (const e of result.events) {
@@ -393,13 +434,12 @@ async function animateScore(result) {
     if (e.kind === 'base') { sfx.chip(0); await sleep(beat); continue; }
 
     const node = e.refId ? findRef(e.refId) : null;
-    if (node) {
-      node.classList.add(node.classList.contains('joker') ? 'trigger' : 'scoring');
-      setTimeout(() => node.classList.remove('trigger', 'scoring'), 420);
-    }
+    if (node) Anim.pop(node, node.classList.contains('joker') ? 1.22 : 1.16);
 
     for (const f of floatsFor(e)) spawnFloat(node, f.text, f.cls);
     playBeat(e, step++);
+    // A multiplier landing deserves a thump.
+    if (e.d?.xmult && e.d.xmult > 1) Anim.shake(dom.app, Math.min(2, e.d.xmult / 2));
     await sleep(beat);
   }
 
@@ -414,12 +454,20 @@ async function animateScore(result) {
   // Slam the total into the score readout.
   const before = G.score;
   const after = before + result.total;
+  Anim.shake(dom.app, clamp(result.total / Math.max(1, G.target) * 3, 0.6, 3));
   await countUp(before, after, fast ? 220 : 460);
   dom.scoreValue.classList.add('pop');
   setTimeout(() => dom.scoreValue.classList.remove('pop'), 280);
   dom.scoreFill.style.width = `${clamp((after / Math.max(1, G.target)) * 100, 0, 100)}%`;
+
+  // Clearing the bar is worth confetti.
+  if (after >= G.target) {
+    const bar = dom.scoreFill.getBoundingClientRect();
+    Anim.burst(dom.fx, { x: window.innerWidth / 2, y: bar.bottom, count: 40 });
+  }
   await sleep(fast ? 100 : 260);
   dom.calc.hidden = true;
+  for (const c of result.played) shownCardIds.delete(c.id);
 }
 
 function floatsFor(e) {
@@ -498,6 +546,12 @@ function toast(msg, bad = false) {
 function openSheet(node) {
   dom.overlay.replaceChildren(node);
   dom.overlay.hidden = false;
+  // Let the grids inside cascade in rather than appearing all at once.
+  requestAnimationFrame(() => {
+    for (const grid of node.querySelectorAll('.shop-grid, .blind-grid, .choice-list')) {
+      Anim.revealChildren(grid, { stagger: 45 });
+    }
+  });
 }
 function closeSheet() {
   dom.overlay.hidden = true;
@@ -683,7 +737,7 @@ function shopSheet() {
     const price = Game.itemPrice(G, p);
     packGrid.appendChild(el('div.shop-item', {}, [
       el('div.pack-tile', { 'data-kind': def.kind }, [
-        el('div', { text: { tarot: '🔯', planet: '🪐', card: '🂠', joker: '🃏', spectral: '👻' }[def.kind], style: { fontSize: '26px' } }),
+        el('div.pack-art', { html: packArt(def.kind) }),
         el('div', { text: def.name }),
         el('div', { text: `Pick ${def.choose} of ${def.size}`, style: { fontWeight: '600', fontSize: '10px' } }),
       ]),
@@ -916,6 +970,7 @@ function showNewRun() {
         screen = 'game';
         Save.saveRun(G);
         render();
+        if (!hasSeenTutorial()) offerTutorial();
       },
     })],
   }));
@@ -1062,6 +1117,61 @@ function showSettings() {
   }));
 }
 
+/** Ask once, on the very first run, whether to be walked through it. */
+function offerTutorial() {
+  openSheet(sheet({
+    title: 'First time?',
+    body: [
+      el('div.center', { style: { padding: '14px 0 6px' } }, [
+        el('div.tut-mascot', { html: jokerFace('tutorial-guide', '#f3b743') }),
+        el('p', { text: 'I can walk you through one round — about 60 seconds. You play it for real; I just point at things.', style: { fontSize: '14px', lineHeight: '1.5' } }),
+      ]),
+    ],
+    footer: [
+      el('button.btn.ghost', {
+        text: 'No thanks',
+        onclick: () => { markTutorialSeen(); sfx.tap(); render(); },
+      }),
+      el('button.btn.green', { text: 'Walk me through it', onclick: () => { sfx.tap(); runTutorial(); } }),
+    ],
+  }));
+}
+
+function runTutorial() {
+  closeSheet();
+  render();
+  tutorial?.stop?.();
+  tutorial = startTutorial({
+    game: () => G,
+    onDone: () => { tutorial = null; render(); },
+  });
+}
+
+/** A static worked example, so the maths is legible without playing. */
+function scoringExample() {
+  const demo = [
+    { rank: 13, suit: 'H' }, { rank: 13, suit: 'S' }, { rank: 9, suit: 'D' },
+  ].map((c) => ({ ...c, id: `demo${c.rank}${c.suit}`, enhancement: null, edition: null, seal: null, debuffed: false }));
+
+  const row = el('div.card-row', { style: { minHeight: 'auto', gap: '4px' } },
+    demo.map((c) => cardEl(c, { reveal: true })));
+
+  const line = (label, value, cls) =>
+    el('div.ex-line', {}, [el('span', { text: label }), el('span', { class: cls ?? '', text: value })]);
+
+  return el('div.example', {}, [
+    row,
+    el('div.ex-body', {}, [
+      line('Pair of Kings — base', '10 chips × 2 Mult'),
+      line('K adds 10 chips', '20 chips × 2 Mult', 'c-chips'),
+      line('K adds 10 chips', '30 chips × 2 Mult', 'c-chips'),
+      line('The 9 is not part of the pair', 'it scores nothing', 'muted'),
+      line('A Joker adding +4 Mult', '30 chips × 6 Mult', 'c-mult'),
+      el('div.ex-total', {}, [el('span', { text: 'Final score' }), el('span', { text: '30 × 6 = 180' })]),
+    ]),
+  ]);
+}
+
 function showHelp() {
   const p = (html) => el('p', { html, style: { margin: '6px 0', fontSize: '13.5px', lineHeight: '1.45' } });
   openSheet(sheet({
@@ -1070,9 +1180,11 @@ function showHelp() {
     body: [
       el('h3', { text: 'The loop' }),
       p('Each <b>Ante</b> has three blinds: Small, Big and a <b>Boss</b>. Beat a blind\'s chip target before you run out of hands, then spend your winnings in the shop and do it again. Survive Ante 8 to win.'),
-      el('h3', { text: 'Scoring' }),
+      el('h3', { text: 'Scoring, step by step' }),
       p('Select up to 5 cards and press <b>Play Hand</b>. The poker hand you make sets a base <span class="c-chips">chips</span> and <span class="c-mult">Mult</span> value. Every scoring card adds its own chips. Then your Jokers fire, left to right. Final score is <span class="c-chips">chips</span> × <span class="c-mult">Mult</span>.'),
-      p('Order matters: a Joker that adds Mult is worth less if it fires before one that multiplies. Drag is not needed — sell and rebuy to reorder, or plan your purchases.'),
+      scoringExample(),
+      p('Only cards that are <b>part of the hand</b> score. Playing a pair plus three junk cards scores exactly the same as playing the pair alone — so the junk is better discarded.'),
+      p('Order matters: a Joker that adds Mult is worth less if it fires before one that multiplies. Sell and rebuy to reorder them.'),
       el('h3', { text: 'Discards' }),
       p('Select cards and press <b>Discard</b> to throw them away and draw replacements. Discards do not cost you a hand, but you only get a few per round.'),
       el('h3', { text: 'Jokers' }),
@@ -1084,7 +1196,11 @@ function showHelp() {
       el('h3', { text: 'Money' }),
       p('You earn interest of $1 per $5 held at the end of each round, up to a cap. Hoarding early pays for the Jokers that win late.'),
     ],
-    footer: [el('button.btn.ghost.wide', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } })],
+    footer: [
+      // The guided walkthrough needs a live run to point at.
+      G ? el('button.btn.green', { text: 'Walk me through it', onclick: () => { sfx.tap(); runTutorial(); } }) : null,
+      el('button.btn.ghost', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } }),
+    ].filter(Boolean),
   }));
 }
 

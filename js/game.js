@@ -1053,6 +1053,9 @@ function makeApi(G, rng) {
   };
 }
 
+/** Used only by the browser smoke test to stage a board quickly. */
+export const makeTestJoker = (key) => makeJoker(key);
+
 export function levelHand(G, key, n = 1) {
   G.handLevels[key].level = Math.max(1, G.handLevels[key].level + n);
   return G.handLevels[key].level;
