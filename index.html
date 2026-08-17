@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jokerdeck</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="description" content="A poker roguelike you can play with one thumb. Build a deck, stack absurd jokers, break the score.">
+<meta name="theme-color" content="#141d24">
+<meta name="color-scheme" content="dark">
+
+<!-- Home-screen install: standalone shell, no browser chrome. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jokerdeck">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- ---------------------------------------------------------- top bar -->
+  <header id="topbar">
+    <button id="btn-menu" class="icon-btn" aria-label="Menu">☰</button>
+    <div id="blind-chip" class="blind-chip">
+      <span class="blind-name">—</span>
+      <span class="blind-target">—</span>
+    </div>
+    <button id="btn-info" class="icon-btn" aria-label="Run info">i</button>
+  </header>
+
+  <div id="scoreline">
+    <div class="score-block">
+      <span class="label">Score</span>
+      <span id="score-value" class="value">0</span>
+    </div>
+    <div id="score-bar"><div id="score-fill"></div></div>
+  </div>
+
+  <!-- ------------------------------------------------------------ board -->
+  <main id="board">
+    <div id="tray-row">
+      <section id="jokers" class="tray" aria-label="Jokers"></section>
+      <section id="consumables" class="tray small" aria-label="Consumables"></section>
+    </div>
+
+    <div id="play-area">
+      <div id="pile-draw" class="pile" aria-label="Draw pile"></div>
+      <div id="pile-discard" class="pile" aria-label="Discard pile"></div>
+      <div id="played" class="card-row" aria-label="Played cards"></div>
+      <div id="calc" class="calc" hidden>
+        <span id="calc-chips" class="chips">0</span>
+        <span class="times">×</span>
+        <span id="calc-mult" class="mult">0</span>
+      </div>
+      <div id="hand-name" class="hand-name"></div>
+    </div>
+  </main>
+
+  <!-- ------------------------------------------------------- hand + HUD -->
+  <div id="hud">
+    <div class="hud-cell"><span class="hud-label">Hands</span><span id="hud-hands" class="hud-val hands">0</span></div>
+    <div class="hud-cell"><span class="hud-label">Discards</span><span id="hud-discards" class="hud-val discards">0</span></div>
+    <div class="hud-cell"><span class="hud-label">Money</span><span id="hud-money" class="hud-val money">$0</span></div>
+    <div class="hud-cell"><span class="hud-label">Ante</span><span id="hud-ante" class="hud-val">1/8</span></div>
+    <div class="hud-cell"><span class="hud-label">Round</span><span id="hud-round" class="hud-val">0</span></div>
+  </div>
+
+  <footer id="handzone">
+    <div id="hand" class="card-row hand-row" aria-label="Your hand"></div>
+    <div id="actions">
+      <button id="btn-play" class="btn play">Play Hand</button>
+      <div class="sort-group">
+        <span class="sort-label">Sort</span>
+        <div>
+          <button id="btn-sort-rank" class="btn tiny">Rank</button>
+          <button id="btn-sort-suit" class="btn tiny">Suit</button>
+        </div>
+      </div>
+      <button id="btn-discard" class="btn discard">Discard</button>
+    </div>
+    <div id="deck-count" class="deck-count">0/0</div>
+  </footer>
+</div>
+
+<!-- Modal host. Screens are rendered into here on demand. -->
+<div id="overlay" class="overlay" hidden></div>
+
+<!-- Floating score popups, boss announcements and toasts. -->
+<div id="fx" aria-hidden="true"></div>
+<div id="toast" class="toast" hidden></div>
+
+<!-- Long-press / tap card detail popover. -->
+<div id="tip" class="tip" hidden></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
