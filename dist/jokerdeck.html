@@ -995,6 +995,38 @@ svg { image-rendering: pixelated; }
 /* Elements under the spotlight must stay tappable through the dim layer. */
 .tut-layer ~ * { pointer-events: auto; }
 
+/* ------------------------------------------------------------ save slots -- */
+
+.slot-list { display: grid; gap: 8px; }
+.slot-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 5px;
+  background: var(--panel);
+  border: 2px solid var(--ink-line);
+}
+.slot-title { font-family: var(--font-display); font-size: 11px; }
+.slot-title.dim { color: var(--ink-dim); }
+.slot-sub { font-size: 12px; color: var(--ink-dim); line-height: 1.35; }
+.slot-actions { display: flex; gap: 6px; }
+.slot-actions .btn { flex: 1; }
+
+.code-box {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 5px;
+  background: #12161c;
+  border: 2px solid var(--ink-line);
+  color: var(--ink-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  resize: vertical;
+  word-break: break-all;
+}
+.code-box:focus { outline: 3px solid var(--chips); outline-offset: 1px; color: var(--ink); }
+
 /* ---------------------------------------------------------- pixel icons -- */
 
 .blind-badge svg { width: 26px; height: 26px; display: block; }
@@ -4021,6 +4053,8 @@ __def('save.js', function () {
 const { serialize, deserialize } = __req('game.js');
 
 const RUN_KEY = 'jokerdeck.run.v3';
+const SLOT_KEY = (i) => `jokerdeck.slot${i}.v3`;
+const SLOT_COUNT = 3;
 const SETTINGS_KEY = 'jokerdeck.settings.v1';
 const PROFILE_KEY = 'jokerdeck.profile.v1';
 
@@ -4080,7 +4114,134 @@ function recordRun(G, won) {
   return p;
 }
 
-return { saveRun, loadRun, clearRun, hasRun, defaultSettings, loadSettings, saveSettings, defaultProfile, loadProfile, saveProfile, recordRun };
+// ---------------------------------------------------------------- slots ----
+// The autosave above is continuous and invisible. Slots are the deliberate
+// kind: save here, come back to exactly this later.
+
+/** Small header stored alongside the run so the slot list needs no full parse. */
+function slotHeader(G) {
+  return {
+    savedAt: Date.now(),
+    seed: G.seed,
+    deckKey: G.deckKey,
+    ante: G.ante,
+    blindIndex: G.blindIndex,
+    round: G.round,
+    money: G.money,
+    score: G.score,
+    jokers: G.jokers.length,
+    phase: G.phase,
+  };
+}
+
+function saveToSlot(G, index) {
+  try {
+    localStorage.setItem(SLOT_KEY(index), JSON.stringify({
+      header: slotHeader(G),
+      run: serialize(G),
+    }));
+    return true;
+  } catch {
+    return false;   // quota exhausted or private mode
+  }
+}
+
+function readSlot(index) {
+  try {
+    const raw = localStorage.getItem(SLOT_KEY(index));
+    if (!raw) return null;
+    const { header } = JSON.parse(raw);
+    return header ?? null;
+  } catch { return null; }
+}
+
+function loadFromSlot(index) {
+  try {
+    const raw = localStorage.getItem(SLOT_KEY(index));
+    if (!raw) return null;
+    return deserialize(JSON.parse(raw).run);
+  } catch { return null; }
+}
+
+function clearSlot(index) {
+  try { localStorage.removeItem(SLOT_KEY(index)); } catch { /* ignore */ }
+}
+
+const listSlots = () =>
+  Array.from({ length: SLOT_COUNT }, (_, i) => ({ index: i, header: readSlot(i) }));
+
+// ----------------------------------------------------------- save codes ----
+// A run is ~12 KB of JSON, which deflates to about 1.2 KB — small enough to
+// paste. Codes are how a run moves between browsers, devices, or between a
+// hosted copy and an installed one, since each has its own local storage.
+
+const CODE_PREFIX_DEFLATE = 'JD1:';
+const CODE_PREFIX_PLAIN = 'JD0:';
+
+const toBase64 = (bytes) => {
+  let bin = '';
+  // Chunked so a large array cannot blow the argument limit.
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+};
+const fromBase64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+async function deflate(text) {
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function inflate(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(stream).text();
+}
+
+/** Produce a portable code for the given run. */
+async function exportCode(G) {
+  const json = serialize(G);
+  if (typeof CompressionStream === 'function') {
+    try {
+      return CODE_PREFIX_DEFLATE + toBase64(await deflate(json));
+    } catch { /* fall through to the uncompressed form */ }
+  }
+  return CODE_PREFIX_PLAIN + toBase64(new TextEncoder().encode(json));
+}
+
+/** Parse a code back into a run, or return null with a reason. */
+async function importCode(raw) {
+  const code = String(raw ?? '').replace(/\s+/g, '');
+  if (!code) return { ok: false, msg: 'Paste a save code first' };
+
+  const deflated = code.startsWith(CODE_PREFIX_DEFLATE);
+  const plain = code.startsWith(CODE_PREFIX_PLAIN);
+  if (!deflated && !plain) return { ok: false, msg: 'That does not look like a Jokerdeck code' };
+
+  try {
+    const body = code.slice(4);
+    const bytes = fromBase64(body);
+    const json = deflated ? await inflate(bytes) : new TextDecoder().decode(bytes);
+    const G = deserialize(json);
+    if (!G) return { ok: false, msg: 'That code is from an older version' };
+    return { ok: true, run: G };
+  } catch {
+    return { ok: false, msg: 'That code is damaged or incomplete' };
+  }
+}
+
+/**
+ * Ask the browser to keep our storage. Without this some browsers may evict
+ * site data under pressure, which would silently lose a run in progress.
+ */
+async function requestPersistence() {
+  try {
+    if (!navigator.storage?.persist) return null;
+    if (await navigator.storage.persisted?.()) return true;
+    return await navigator.storage.persist();
+  } catch { return null; }
+}
+
+return { SLOT_COUNT, saveRun, loadRun, clearRun, hasRun, defaultSettings, loadSettings, saveSettings, defaultProfile, loadProfile, saveProfile, recordRun, saveToSlot, readSlot, loadFromSlot, clearSlot, listSlots, exportCode, importCode, requestPersistence };
 });
 
 __def('art.js', function () {
@@ -4904,6 +5065,7 @@ function boot() {
   wireControls();
   window.addEventListener('resize', layoutHand);
   installTestHooks();
+  Save.requestPersistence();
   const saved = Save.loadRun();
   if (saved) { G = saved; screen = 'game'; render(); }
   else showMenu();
@@ -4919,6 +5081,7 @@ function installTestHooks() {
     seed: () => G?.seed ?? null,
     state: () => G,
     giveMoney: (n) => { if (G) { G.money += n; render(); } },
+    bumpScore: (n) => { if (G) { G.score += n; render(); } },
     giveJokers: (keys) => {
       if (!G) return;
       G.jokers = keys.map((k) => Game.makeTestJoker(k));
@@ -5813,7 +5976,7 @@ function showMenu() {
       ...body,
       el('div', { style: { display: 'flex', gap: '8px', marginTop: '14px' } }, [
         el('button.btn.ghost', { text: 'How to Play', style: { flex: '1' }, onclick: () => { sfx.tap(); showHelp(); } }),
-        el('button.btn.ghost', { text: 'Settings', style: { flex: '1' }, onclick: () => { sfx.tap(); showSettings(); } }),
+        el('button.btn.ghost', { text: 'Save & Load', style: { flex: '1' }, onclick: () => { sfx.tap(); showSaveLoad(); } }),
       ]),
     ],
     footer,
@@ -5876,6 +6039,7 @@ function showPauseMenu() {
       el('div', { style: { display: 'grid', gap: '8px', marginTop: '14px' } }, [
         el('button.btn.ghost.wide', { text: 'Run Info', onclick: () => { sfx.tap(); showRunInfo(); } }),
         el('button.btn.ghost.wide', { text: 'View Deck', onclick: () => { sfx.tap(); showDeck(); } }),
+        el('button.btn.ghost.wide', { text: 'Save & Load', onclick: () => { sfx.tap(); showSaveLoad(); } }),
         el('button.btn.ghost.wide', { text: 'Settings', onclick: () => { sfx.tap(); showSettings(); } }),
         el('button.btn.ghost.wide', { text: 'How to Play', onclick: () => { sfx.tap(); showHelp(); } }),
         el('button.btn.discard.wide', {
@@ -5891,6 +6055,131 @@ function showPauseMenu() {
       ]),
     ],
     footer: [el('button.btn.green.wide', { text: 'Resume', onclick: () => { sfx.tap(); render(); } })],
+  }));
+}
+
+/** Manual save slots plus a portable code, reachable from pause and menu. */
+function showSaveLoad() {
+  const ago = (t) => {
+    const mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hr ago`;
+    return `${Math.round(hrs / 24)} d ago`;
+  };
+
+  const slotRow = ({ index, header }) => {
+    const row = el('div.slot-row');
+    const label = el('div.slot-label');
+    if (header) {
+      label.append(
+        el('div.slot-title', { text: `Ante ${header.ante} · Round ${header.round}` }),
+        el('div.slot-sub', {
+          text: `${DECK_BY_KEY[header.deckKey]?.name ?? header.deckKey} · ${$m(header.money)}`
+            + ` · ${header.jokers} Joker${header.jokers === 1 ? '' : 's'}`,
+        }),
+        el('div.slot-sub', { text: `Saved ${ago(header.savedAt)} · seed ${header.seed}` }),
+      );
+    } else {
+      label.append(
+        el('div.slot-title.dim', { text: `Slot ${index + 1}` }),
+        el('div.slot-sub', { text: 'Empty' }),
+      );
+    }
+
+    const actions = el('div.slot-actions', {}, [
+      G ? el('button.btn.tiny', {
+        text: header ? 'Overwrite' : 'Save',
+        onclick: () => {
+          if (header && !confirm(`Overwrite slot ${index + 1}?`)) return;
+          if (!Save.saveToSlot(G, index)) { sfx.error(); return toast('Could not save — storage is full', true); }
+          sfx.buy();
+          toast(`Saved to slot ${index + 1}`);
+          showSaveLoad();
+        },
+      }) : null,
+      header ? el('button.btn.tiny.green', {
+        text: 'Load',
+        onclick: () => {
+          if (G && !confirm('Load this save? The run in progress will be replaced.')) return;
+          const loaded = Save.loadFromSlot(index);
+          if (!loaded) { sfx.error(); return toast('That save could not be read', true); }
+          G = loaded;
+          screen = 'game';
+          Save.saveRun(G);
+          sfx.win();
+          toast(`Loaded slot ${index + 1}`);
+          render();
+        },
+      }) : null,
+      header ? el('button.btn.tiny', {
+        text: 'Erase',
+        onclick: () => {
+          if (!confirm(`Erase slot ${index + 1}?`)) return;
+          Save.clearSlot(index);
+          sfx.tap();
+          showSaveLoad();
+        },
+      }) : null,
+    ].filter(Boolean));
+
+    row.append(label, actions);
+    return row;
+  };
+
+  const codeBox = el('textarea.code-box', {
+    rows: '3',
+    placeholder: 'Paste a save code here to load a run from another device',
+    spellcheck: 'false',
+    autocapitalize: 'off',
+    autocomplete: 'off',
+  });
+
+  const body = [
+    el('div.muted', { text: 'Your run is saved automatically after every action — closing the app never loses progress. Slots are for keeping a run you can come back to on purpose.' }),
+    el('h3', { text: 'Save slots' }),
+    el('div.slot-list', {}, Save.listSlots().map(slotRow)),
+    el('h3', { text: 'Move a run to another device' }),
+    el('div.muted', { text: 'Each browser and installed copy keeps its own storage, so a code is how a run travels between them.' }),
+    el('div', { style: { display: 'flex', gap: '8px', margin: '8px 0' } }, [
+      G ? el('button.btn.tiny', {
+        text: 'Copy this run',
+        style: { flex: '1' },
+        onclick: async () => {
+          const code = await Save.exportCode(G);
+          codeBox.value = code;
+          codeBox.select();
+          let copied = false;
+          try { await navigator.clipboard.writeText(code); copied = true; } catch { /* fall back to the selection */ }
+          sfx.buy();
+          toast(copied ? 'Save code copied' : 'Code ready below — copy it');
+        },
+      }) : null,
+      el('button.btn.tiny.green', {
+        text: 'Load code',
+        style: { flex: '1' },
+        onclick: async () => {
+          const out = await Save.importCode(codeBox.value);
+          if (!out.ok) { sfx.error(); return toast(out.msg, true); }
+          if (G && !confirm('Load this code? The run in progress will be replaced.')) return;
+          G = out.run;
+          screen = 'game';
+          Save.saveRun(G);
+          sfx.win();
+          toast('Run loaded');
+          render();
+        },
+      }),
+    ].filter(Boolean)),
+    codeBox,
+  ];
+
+  openSheet(sheet({
+    title: 'Save & Load',
+    right: el('button.btn.tiny', { text: 'Close', onclick: () => { sfx.tap(); G ? render() : showMenu(); } }),
+    body,
+    footer: [el('button.btn.ghost.wide', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } })],
   }));
 }
 

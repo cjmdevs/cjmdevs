@@ -3,6 +3,8 @@
 import { serialize, deserialize } from './game.js';
 
 const RUN_KEY = 'jokerdeck.run.v3';
+const SLOT_KEY = (i) => `jokerdeck.slot${i}.v3`;
+export const SLOT_COUNT = 3;
 const SETTINGS_KEY = 'jokerdeck.settings.v1';
 const PROFILE_KEY = 'jokerdeck.profile.v1';
 
@@ -60,4 +62,131 @@ export function recordRun(G, won) {
   p.handsPlayed += G.stats.handsPlayed;
   saveProfile(p);
   return p;
+}
+
+// ---------------------------------------------------------------- slots ----
+// The autosave above is continuous and invisible. Slots are the deliberate
+// kind: save here, come back to exactly this later.
+
+/** Small header stored alongside the run so the slot list needs no full parse. */
+function slotHeader(G) {
+  return {
+    savedAt: Date.now(),
+    seed: G.seed,
+    deckKey: G.deckKey,
+    ante: G.ante,
+    blindIndex: G.blindIndex,
+    round: G.round,
+    money: G.money,
+    score: G.score,
+    jokers: G.jokers.length,
+    phase: G.phase,
+  };
+}
+
+export function saveToSlot(G, index) {
+  try {
+    localStorage.setItem(SLOT_KEY(index), JSON.stringify({
+      header: slotHeader(G),
+      run: serialize(G),
+    }));
+    return true;
+  } catch {
+    return false;   // quota exhausted or private mode
+  }
+}
+
+export function readSlot(index) {
+  try {
+    const raw = localStorage.getItem(SLOT_KEY(index));
+    if (!raw) return null;
+    const { header } = JSON.parse(raw);
+    return header ?? null;
+  } catch { return null; }
+}
+
+export function loadFromSlot(index) {
+  try {
+    const raw = localStorage.getItem(SLOT_KEY(index));
+    if (!raw) return null;
+    return deserialize(JSON.parse(raw).run);
+  } catch { return null; }
+}
+
+export function clearSlot(index) {
+  try { localStorage.removeItem(SLOT_KEY(index)); } catch { /* ignore */ }
+}
+
+export const listSlots = () =>
+  Array.from({ length: SLOT_COUNT }, (_, i) => ({ index: i, header: readSlot(i) }));
+
+// ----------------------------------------------------------- save codes ----
+// A run is ~12 KB of JSON, which deflates to about 1.2 KB — small enough to
+// paste. Codes are how a run moves between browsers, devices, or between a
+// hosted copy and an installed one, since each has its own local storage.
+
+const CODE_PREFIX_DEFLATE = 'JD1:';
+const CODE_PREFIX_PLAIN = 'JD0:';
+
+const toBase64 = (bytes) => {
+  let bin = '';
+  // Chunked so a large array cannot blow the argument limit.
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+};
+const fromBase64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+async function deflate(text) {
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function inflate(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(stream).text();
+}
+
+/** Produce a portable code for the given run. */
+export async function exportCode(G) {
+  const json = serialize(G);
+  if (typeof CompressionStream === 'function') {
+    try {
+      return CODE_PREFIX_DEFLATE + toBase64(await deflate(json));
+    } catch { /* fall through to the uncompressed form */ }
+  }
+  return CODE_PREFIX_PLAIN + toBase64(new TextEncoder().encode(json));
+}
+
+/** Parse a code back into a run, or return null with a reason. */
+export async function importCode(raw) {
+  const code = String(raw ?? '').replace(/\s+/g, '');
+  if (!code) return { ok: false, msg: 'Paste a save code first' };
+
+  const deflated = code.startsWith(CODE_PREFIX_DEFLATE);
+  const plain = code.startsWith(CODE_PREFIX_PLAIN);
+  if (!deflated && !plain) return { ok: false, msg: 'That does not look like a Jokerdeck code' };
+
+  try {
+    const body = code.slice(4);
+    const bytes = fromBase64(body);
+    const json = deflated ? await inflate(bytes) : new TextDecoder().decode(bytes);
+    const G = deserialize(json);
+    if (!G) return { ok: false, msg: 'That code is from an older version' };
+    return { ok: true, run: G };
+  } catch {
+    return { ok: false, msg: 'That code is damaged or incomplete' };
+  }
+}
+
+/**
+ * Ask the browser to keep our storage. Without this some browsers may evict
+ * site data under pressure, which would silently lose a run in progress.
+ */
+export async function requestPersistence() {
+  try {
+    if (!navigator.storage?.persist) return null;
+    if (await navigator.storage.persisted?.()) return true;
+    return await navigator.storage.persist();
+  } catch { return null; }
 }

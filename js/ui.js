@@ -44,6 +44,7 @@ export function boot() {
   wireControls();
   window.addEventListener('resize', layoutHand);
   installTestHooks();
+  Save.requestPersistence();
   const saved = Save.loadRun();
   if (saved) { G = saved; screen = 'game'; render(); }
   else showMenu();
@@ -59,6 +60,7 @@ function installTestHooks() {
     seed: () => G?.seed ?? null,
     state: () => G,
     giveMoney: (n) => { if (G) { G.money += n; render(); } },
+    bumpScore: (n) => { if (G) { G.score += n; render(); } },
     giveJokers: (keys) => {
       if (!G) return;
       G.jokers = keys.map((k) => Game.makeTestJoker(k));
@@ -953,7 +955,7 @@ export function showMenu() {
       ...body,
       el('div', { style: { display: 'flex', gap: '8px', marginTop: '14px' } }, [
         el('button.btn.ghost', { text: 'How to Play', style: { flex: '1' }, onclick: () => { sfx.tap(); showHelp(); } }),
-        el('button.btn.ghost', { text: 'Settings', style: { flex: '1' }, onclick: () => { sfx.tap(); showSettings(); } }),
+        el('button.btn.ghost', { text: 'Save & Load', style: { flex: '1' }, onclick: () => { sfx.tap(); showSaveLoad(); } }),
       ]),
     ],
     footer,
@@ -1016,6 +1018,7 @@ function showPauseMenu() {
       el('div', { style: { display: 'grid', gap: '8px', marginTop: '14px' } }, [
         el('button.btn.ghost.wide', { text: 'Run Info', onclick: () => { sfx.tap(); showRunInfo(); } }),
         el('button.btn.ghost.wide', { text: 'View Deck', onclick: () => { sfx.tap(); showDeck(); } }),
+        el('button.btn.ghost.wide', { text: 'Save & Load', onclick: () => { sfx.tap(); showSaveLoad(); } }),
         el('button.btn.ghost.wide', { text: 'Settings', onclick: () => { sfx.tap(); showSettings(); } }),
         el('button.btn.ghost.wide', { text: 'How to Play', onclick: () => { sfx.tap(); showHelp(); } }),
         el('button.btn.discard.wide', {
@@ -1031,6 +1034,131 @@ function showPauseMenu() {
       ]),
     ],
     footer: [el('button.btn.green.wide', { text: 'Resume', onclick: () => { sfx.tap(); render(); } })],
+  }));
+}
+
+/** Manual save slots plus a portable code, reachable from pause and menu. */
+function showSaveLoad() {
+  const ago = (t) => {
+    const mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hr ago`;
+    return `${Math.round(hrs / 24)} d ago`;
+  };
+
+  const slotRow = ({ index, header }) => {
+    const row = el('div.slot-row');
+    const label = el('div.slot-label');
+    if (header) {
+      label.append(
+        el('div.slot-title', { text: `Ante ${header.ante} · Round ${header.round}` }),
+        el('div.slot-sub', {
+          text: `${DECK_BY_KEY[header.deckKey]?.name ?? header.deckKey} · ${$m(header.money)}`
+            + ` · ${header.jokers} Joker${header.jokers === 1 ? '' : 's'}`,
+        }),
+        el('div.slot-sub', { text: `Saved ${ago(header.savedAt)} · seed ${header.seed}` }),
+      );
+    } else {
+      label.append(
+        el('div.slot-title.dim', { text: `Slot ${index + 1}` }),
+        el('div.slot-sub', { text: 'Empty' }),
+      );
+    }
+
+    const actions = el('div.slot-actions', {}, [
+      G ? el('button.btn.tiny', {
+        text: header ? 'Overwrite' : 'Save',
+        onclick: () => {
+          if (header && !confirm(`Overwrite slot ${index + 1}?`)) return;
+          if (!Save.saveToSlot(G, index)) { sfx.error(); return toast('Could not save — storage is full', true); }
+          sfx.buy();
+          toast(`Saved to slot ${index + 1}`);
+          showSaveLoad();
+        },
+      }) : null,
+      header ? el('button.btn.tiny.green', {
+        text: 'Load',
+        onclick: () => {
+          if (G && !confirm('Load this save? The run in progress will be replaced.')) return;
+          const loaded = Save.loadFromSlot(index);
+          if (!loaded) { sfx.error(); return toast('That save could not be read', true); }
+          G = loaded;
+          screen = 'game';
+          Save.saveRun(G);
+          sfx.win();
+          toast(`Loaded slot ${index + 1}`);
+          render();
+        },
+      }) : null,
+      header ? el('button.btn.tiny', {
+        text: 'Erase',
+        onclick: () => {
+          if (!confirm(`Erase slot ${index + 1}?`)) return;
+          Save.clearSlot(index);
+          sfx.tap();
+          showSaveLoad();
+        },
+      }) : null,
+    ].filter(Boolean));
+
+    row.append(label, actions);
+    return row;
+  };
+
+  const codeBox = el('textarea.code-box', {
+    rows: '3',
+    placeholder: 'Paste a save code here to load a run from another device',
+    spellcheck: 'false',
+    autocapitalize: 'off',
+    autocomplete: 'off',
+  });
+
+  const body = [
+    el('div.muted', { text: 'Your run is saved automatically after every action — closing the app never loses progress. Slots are for keeping a run you can come back to on purpose.' }),
+    el('h3', { text: 'Save slots' }),
+    el('div.slot-list', {}, Save.listSlots().map(slotRow)),
+    el('h3', { text: 'Move a run to another device' }),
+    el('div.muted', { text: 'Each browser and installed copy keeps its own storage, so a code is how a run travels between them.' }),
+    el('div', { style: { display: 'flex', gap: '8px', margin: '8px 0' } }, [
+      G ? el('button.btn.tiny', {
+        text: 'Copy this run',
+        style: { flex: '1' },
+        onclick: async () => {
+          const code = await Save.exportCode(G);
+          codeBox.value = code;
+          codeBox.select();
+          let copied = false;
+          try { await navigator.clipboard.writeText(code); copied = true; } catch { /* fall back to the selection */ }
+          sfx.buy();
+          toast(copied ? 'Save code copied' : 'Code ready below — copy it');
+        },
+      }) : null,
+      el('button.btn.tiny.green', {
+        text: 'Load code',
+        style: { flex: '1' },
+        onclick: async () => {
+          const out = await Save.importCode(codeBox.value);
+          if (!out.ok) { sfx.error(); return toast(out.msg, true); }
+          if (G && !confirm('Load this code? The run in progress will be replaced.')) return;
+          G = out.run;
+          screen = 'game';
+          Save.saveRun(G);
+          sfx.win();
+          toast('Run loaded');
+          render();
+        },
+      }),
+    ].filter(Boolean)),
+    codeBox,
+  ];
+
+  openSheet(sheet({
+    title: 'Save & Load',
+    right: el('button.btn.tiny', { text: 'Close', onclick: () => { sfx.tap(); G ? render() : showMenu(); } }),
+    body,
+    footer: [el('button.btn.ghost.wide', { text: 'Back', onclick: () => { sfx.tap(); G ? render() : showMenu(); } })],
   }));
 }
 

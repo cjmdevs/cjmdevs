@@ -106,6 +106,24 @@ plan around it.
 
 Press and hold **any** card or Joker to read exactly what it does.
 
+### Saving
+
+Your run is **saved automatically after every action**, so closing the app,
+switching away, or reloading never loses progress — it reopens exactly where
+you left off.
+
+**Save & Load** (pause menu, or the main menu) adds the deliberate kind:
+
+- **Three slots.** Save a run at any point and come back to that exact state
+  later, even after playing on past it.
+- **Save codes.** Every browser and installed copy keeps its own storage, so a
+  run cannot see itself across them. *Copy this run* produces a ~1.6 KB code
+  you can paste into another device to continue there. A full run of state
+  compresses from ~12 KB of JSON down to about 1.2 KB.
+
+The game also asks the browser for persistent storage on first launch, so site
+data is not evicted under pressure while a run is in progress.
+
 ### Learning it
 
 Your first run offers a **guided walkthrough** — a spotlight and a coach bubble
@@ -177,7 +195,7 @@ js/
   blinds.js             antes, blinds, boss abilities, skip tags
   shop.js               shop stock, packs, vouchers
   decks.js              starting decks
-  save.js               localStorage persistence
+  save.js               autosave, save slots, portable save codes
   art.js                procedural pixel art — joker faces, suits, icons
   anim.js               FLIP flights, confetti, screen shake, staggered reveals
   tutorial.js           the guided walkthrough (spotlight + coach bubble)
@@ -195,7 +213,7 @@ ever changing.
 ### Tests
 
 ```bash
-npm test                       # 66 assertions: rules, data sanity, deploy drift
+npm test                       # 69 assertions: rules, saves, data sanity, drift
 node tools/simulate.mjs 400    # fuzz: bots 400 full runs, fails on crash/NaN
 node tools/balance.mjs 150     # difficulty probe with a greedy bot
 npm i -D playwright

@@ -11,13 +11,21 @@ import { VOUCHERS, PACKS, availableVouchers } from '../js/shop.js';
 import { BOSSES, FINISHERS, anteBase, blindTarget } from '../js/blinds.js';
 import { DECKS } from '../js/decks.js';
 import * as Game from '../js/game.js';
+import * as Save from '../js/save.js';
 
 let passed = 0;
 const failures = [];
 
+const pending = [];
 function test(name, fn) {
-  try { fn(); passed++; }
-  catch (err) { failures.push(`${name}: ${err.message}`); }
+  try {
+    const out = fn();
+    if (out && typeof out.then === 'function') {
+      pending.push(out.then(() => { passed++; }, (err) => { failures.push(`${name}: ${err.message}`); }));
+    } else {
+      passed++;
+    }
+  } catch (err) { failures.push(`${name}: ${err.message}`); }
 }
 
 const C = (rank, suit, extra) => makeCard(rank, suit, extra);
@@ -687,6 +695,56 @@ test('joker order rewards putting multipliers last', () => {
     'adding Mult before multiplying it must score higher');
 });
 
+// ------------------------------------------------------------ save codes --
+// A code must reconstruct a run that scores identically, or "load later" is a
+// lie. These run against the same serialize/deserialize the slots use.
+
+test('a save code round-trips a live run byte-for-byte in behaviour', async () => {
+  const G = Game.newRun({ seed: 'CODEME', deckKey: 'zodiac' });
+  Game.startBlind(G);
+  G.jokers = ['jester', 'tribe', 'blueprint'].map((k) => makeJoker(k));
+  G.handLevels.flush.level = 7;
+  G.money = 37;
+  G.selected = G.hand.slice(0, 3).map((c) => c.id);
+  Game.recompute(G);
+
+  const code = await Save.exportCode(G);
+  assert.ok(code.startsWith('JD1:') || code.startsWith('JD0:'), 'code needs a version prefix');
+  assert.ok(code.length < 12000, `code should stay pasteable, got ${code.length} chars`);
+
+  const out = await Save.importCode(code);
+  assert.ok(out.ok, out.msg);
+  const back = out.run;
+  assert.equal(back.seed, G.seed);
+  assert.equal(back.deckKey, G.deckKey);
+  assert.equal(back.money, 37);
+  assert.equal(back.handLevels.flush.level, 7);
+  assert.equal(back.jokers.length, 3);
+  assert.equal(back.deck.length, G.deck.length);
+  assert.ok(back.vouchers instanceof Set);
+  assert.equal(back.vouchers.size, G.vouchers.size, 'zodiac deck vouchers must survive');
+  // The real test: the restored run scores the same hand identically.
+  assert.equal(Game.scoreSelected(back).total, Game.scoreSelected(G).total);
+});
+
+test('save codes reject junk with a useful message', async () => {
+  for (const bad of ['', 'hello', 'JD1:!!!!not-base64!!!!']) {
+    const out = await Save.importCode(bad);
+    assert.equal(out.ok, false, `"${bad}" should not import`);
+    assert.ok(out.msg && out.msg.length > 5, 'needs an explanation');
+  }
+});
+
+test('save codes compress substantially', async () => {
+  const G = Game.newRun({ seed: 'SQUEEZE' });
+  Game.startBlind(G);
+  const raw = Game.serialize(G).length;
+  const code = await Save.exportCode(G);
+  if (code.startsWith('JD1:')) {
+    assert.ok(code.length < raw / 2, `expected compression, ${code.length} vs ${raw}`);
+  }
+});
+
 // ------------------------------------------------------- deployment sanity --
 
 test('the service worker precaches every shipped module and stylesheet', () => {
@@ -732,6 +790,7 @@ test('index.html references only files that exist', () => {
 
 // ------------------------------------------------------------------- report --
 
+await Promise.all(pending);
 console.log(`\n${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.error('  ✗ ' + f);
 process.exit(failures.length ? 1 : 0);

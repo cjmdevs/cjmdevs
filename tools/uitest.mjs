@@ -53,6 +53,8 @@ async function main() {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`);
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
+  // Slot overwrite / load ask for confirmation.
+  page.on('dialog', (d) => d.accept());
   page.on('requestfailed', (r) => problems.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
 
   const shot = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOT_DIR}/${name}.png` }); };
@@ -235,6 +237,46 @@ async function main() {
   await page.click('.tut-bubble .tut-skip');
   await page.waitForTimeout(300);
   step('tutorial can be skipped', (await page.locator('.tut-layer').count()) === 0);
+
+  // ------------------------------------------------------ save and load ----
+  await page.click('#btn-menu');
+  await page.waitForSelector('text=Save & Load', { timeout: 5000 });
+  await page.click('.sheet button:has-text("Save & Load")');
+  await page.waitForSelector('.slot-list', { timeout: 5000 });
+  const slots = await page.locator('.slot-row').count();
+  step('save slots render', slots === 3, `${slots} slots`);
+
+  const scoreAtSave = await page.evaluate(() => window.__test.state().score);
+  await page.locator('.slot-row').first().locator('button:has-text("Save")').click();
+  await page.waitForTimeout(400);
+  const slotFilled = await page.locator('.slot-row').first().textContent();
+  step('saving fills the slot with run details', /Ante \d+/.test(slotFilled), slotFilled.slice(0, 46).trim());
+  await shot('16-saveload');
+
+  // A save code must be produced and look like one.
+  await page.locator('.sheet button:has-text("Copy this run")').click();
+  await page.waitForTimeout(500);
+  const code = await page.locator('.code-box').inputValue();
+  step('a portable save code is produced', /^JD[01]:/.test(code) && code.length > 200,
+    `${code.slice(0, 6)}… ${code.length} chars`);
+
+  // Change the game, then load the slot and confirm it really rewinds.
+  await page.click('.sheet footer button:has-text("Back")');
+  await page.waitForSelector('#overlay', { state: 'hidden', timeout: 5000 });
+  await page.evaluate(() => window.__test.bumpScore(9999));
+  const scoreAfterChange = await page.evaluate(() => window.__test.state().score);
+  step('game state moved on after saving', scoreAfterChange !== scoreAtSave,
+    `${scoreAtSave} -> ${scoreAfterChange}`);
+
+  await page.click('#btn-menu');
+  await page.waitForSelector('text=Save & Load', { timeout: 5000 });
+  await page.click('.sheet button:has-text("Save & Load")');
+  await page.waitForSelector('.slot-list', { timeout: 5000 });
+  await page.locator('.slot-row').first().locator('button:has-text("Load")').click();
+  await page.waitForTimeout(700);
+  const scoreAfterLoad = await page.evaluate(() => window.__test.state().score);
+  step('loading a slot restores the saved state', scoreAfterLoad === scoreAtSave,
+    `${scoreAfterChange} -> ${scoreAfterLoad}, expected ${scoreAtSave}`);
 
   // ------------------------------------------------------- win the blind ----
   // Force a win through the exposed module so we can reach the shop.
