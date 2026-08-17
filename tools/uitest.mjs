@@ -352,15 +352,17 @@ async function main() {
   // modules (CORS rejects origin `null`), and the inlined bundle is what any
   // embedded viewer actually serves.
   const sandbox = await ctx.newPage();
-  const origin = BASE.replace(/\/[^/]*\.html$/, '');
-  await sandbox.goto(`${origin}/`);
-  await sandbox.evaluate(() => {
+  // Derive the base so this works whether the site is served at the root or
+  // from a project subpath like /repo/, which is how GitHub Pages serves it.
+  const siteRoot = BASE.replace(/\/[^/]*\.html$/, '').replace(/\/$/, '');
+  await sandbox.goto(`${siteRoot}/`);
+  await sandbox.evaluate((root) => {
     const f = document.createElement('iframe');
     f.setAttribute('sandbox', 'allow-scripts');
-    f.src = '/dist/jokerdeck.html';
+    f.src = `${root}/dist/jokerdeck.html`;
     f.style.cssText = 'width:390px;height:800px;border:0';
     document.body.appendChild(f);
-  });
+  }, siteRoot);
   await sandbox.waitForTimeout(2600);
 
   const frame = sandbox.frames().find((f) => f.url().includes('jokerdeck.html'));

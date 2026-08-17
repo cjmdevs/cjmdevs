@@ -32,6 +32,9 @@ jobs:
 
   deploy:
     needs: test
+    # Pages restricts the github-pages environment to the default branch, so
+    # only main deploys. Other branches still run the test job above.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -54,7 +57,11 @@ jobs:
           # Stop Pages running the output through Jekyll.
           touch _site/.nojekyll
 
+      # enablement turns Pages on via the API if it is not already configured,
+      # so no manual repository setting is required.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
